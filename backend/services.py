@@ -1,0 +1,116 @@
+import os
+import json
+import base64
+from pathlib import Path
+from dotenv import load_dotenv
+from openai import OpenAI
+
+# Explicitly load .env from the same directory
+load_dotenv(Path(__file__).parent / ".env")
+
+# Tentukan lokasi folder prompts
+PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
+
+# --- SETUP CLIENTS ---
+# HANYA butuh Colossal/Claude. Roboflow sudah dipensiunkan.
+kolosal_client = OpenAI(
+    api_key=os.getenv("KOLOSAL_API_KEY"),
+    base_url=os.getenv("KOLOSAL_BASE_URL")
+)
+
+def encode_image_to_base64(image_bytes):
+    """Helper buat ubah bytes gambar jadi string base64"""
+    return base64.b64encode(image_bytes).decode('utf-8')
+
+def analyze_market_inventory(image_bytes):
+    """
+    PURE CLAUDE INTELLIGENCE
+    Satu otak untuk semua: Deteksi Jenis, Hitung Jumlah, Cek Kualitas.
+    """
+    
+    print("✨ Mengirim gambar ke Claude Sonnet 4.5 (All-in-One Analysis)...")
+    
+    # 1. Siapkan Gambar
+    base64_image = encode_image_to_base64(image_bytes)
+
+    # 2. THE GOD PROMPT (Prompt Sakti)
+    # Kita hardcode di sini dulu biar aman, atau bisa baca dari file txt
+    prompt_text = """
+    Kamu adalah AI Inventory Cerdas untuk pedagang pasar tradisional Indonesia.
+    Tugasmu adalah melihat gambar stok dagangan dan mengekstrak data logistik.
+
+    Lakukan langkah berpikir ini:
+    1. IDENTIFIKASI: Barang apa ini? (Gunakan nama lokal Indonesia, misal: Bawang Merah, Cabe Rawit).
+    2. HITUNG (COUNTING): 
+       - Hitung jumlah objek yang terlihat dengan teliti.
+       - Jika barangnya satuan (seperti Bawang, Telur, Buah), hitung per butir/pcs.
+       - Jika barangnya dalam wadah (seperti Beras dalam karung), hitung wadahnya.
+       - Jika bertumpuk sangat banyak (seperti cabe sekilo), berikan estimasi "1" dengan satuan "Tumpukan/Kg".
+    3. QUALITY CHECK: Lihat warna, tekstur, dan kulit. Apakah segar? Ada busuk?
+    4. EXPIRY PREDICTION: Estimasi sisa hari layak konsumsi di suhu ruang.
+
+    Output HANYA JSON raw (tanpa markdown ```json):
+    {
+        "items": [
+            {
+                "name": "Nama Barang",
+                "qty": (integer),
+                "unit": "Pcs/Ikat/Karung/Kg",
+                "freshness": "Sangat Segar/Cukup/Layum/Busuk",
+                "expiry_days": (integer sisa hari),
+                "visual_reasoning": "Penjelasan singkat kenapa dinilai segitu"
+            }
+        ]
+    }
+    """
+
+    try:
+        # 3. Panggil API Colossal
+        response = kolosal_client.chat.completions.create(
+            model="Claude Sonnet 4.5", # Pastikan nama model sesuai instruksi Colossal
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt_text},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=1000,
+            temperature=0.1 # Penting! Rendah biar dia teliti ngitung (gak kreatif/halu)
+        )
+        
+        # 4. Parsing Hasil
+        content = response.choices[0].message.content
+        print(f"🤖 Claude Raw Response: {content[:100]}...") # Debug dikit
+
+        # Bersihin markdown kalau ada
+        cleaned_content = content.replace("```json", "").replace("```", "").strip()
+        parsed_data = json.loads(cleaned_content)
+        
+        # 5. Format Return
+        final_data = []
+        for item in parsed_data.get("items", []):
+            final_data.append({
+                "name": item.get("name"),
+                "qty": item.get("qty"),
+                "unit": item.get("unit"),
+                "freshness": item.get("freshness"),
+                "expiry": item.get("expiry_days"),
+                "note": item.get("visual_reasoning") # Bonus: alesan AI-nya
+            })
+            
+        return {"status": "success", "data": final_data}
+
+    except json.JSONDecodeError:
+        print("❌ Error: Claude tidak mengembalikan JSON valid.")
+        return {"error": "AI Error (Invalid JSON)"}
+    except Exception as e:
+        print(f"❌ Error API: {e}")
+        return {"error": f"Gagal analisis: {str(e)}"}
