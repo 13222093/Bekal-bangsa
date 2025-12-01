@@ -33,8 +33,7 @@ def analyze_market_inventory(image_bytes):
     # 1. Siapkan Gambar
     base64_image = encode_image_to_base64(image_bytes)
 
-    # 2. THE GOD PROMPT (Prompt Sakti)
-    # Kita hardcode di sini dulu biar aman, atau bisa baca dari file txt
+    # 2. Prompt Claude
     prompt_text = """
     Kamu adalah AI Inventory Cerdas untuk pedagang pasar tradisional Indonesia.
     Tugasmu adalah melihat gambar stok dagangan dan mengekstrak data logistik.
