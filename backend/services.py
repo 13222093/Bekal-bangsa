@@ -8,6 +8,7 @@ from openai import OpenAI
 from datetime import datetime, timedelta
 from fastapi import UploadFile
 import time
+import math
 
 # Explicitly load .env from the same directory
 load_dotenv(Path(__file__).parent / ".env")
@@ -136,7 +137,10 @@ def generate_menu_recommendation(ingredients_list):
     {{
         "menu_name": "Nama Masakan",
         "description": "Deskripsi singkat menggugah selera dan langkah memasaknya",
-        "nutrition": "Estimasi Kalori & Protein",
+        "nutrition": {{
+            "calories": "Estimasi Kalori (misal: 500 kcal)",
+            "protein": "Estimasi Protein (misal: 20g)"
+        }},
         "reason": "Kenapa menu ini cocok dengan bahan yg ada",
         "ingredients_used": ["Bahan A", "Bahan B"]
     }}
@@ -156,10 +160,6 @@ def generate_menu_recommendation(ingredients_list):
     except Exception as e:
         print(f"❌ Error Menu AI: {e}")
         return {"error": "Gagal membuat menu"}
-
-        return {"error": "Gagal mencari data"}
-
-import math
 
 def haversine_distance(lat1, lon1, lat2, lon2):
     """
@@ -295,12 +295,6 @@ def analyze_cooked_meal(image_bytes):
     }
     """
     
-    # ... (Copy logic request ke Claude dari fungsi analyze_market_inventory, ganti prompt-nya) ...
-    # (Biar ringkas, gunakan pola yang sama: kolosal_client.chat.completions.create...)
-    # Return JSON hasil parsing.
-    # ...
-    
-    # --- CONTOH IMPLEMENTASI CEPAT (COPAS BAGIAN REQUEST CLAUDE DI BAWAH INI) ---
     try:
         response = kolosal_client.chat.completions.create(
             model="Claude Sonnet 4.5",
@@ -367,3 +361,79 @@ def calculate_meal_expiry(menu_name: str) -> dict:
             "storage_tips": "Segera konsumsi. Simpan di tempat sejuk dan tertutup."
         }
 
+def check_expiry_and_notify():
+    """
+    Cek barang yang mau busuk (expiry_days <= 2).
+    Generate notifikasi simulasi untuk WhatsApp.
+    """
+    print("🔔 Checking expiry for notifications...")
+    
+    # 1. Ambil data yang mau busuk
+    response = supabase.table("supplies").select("*").lte("expiry_days", 2).execute()
+    expiring_items = response.data
+    
+    print(f"DEBUG: expiring_items type: {type(expiring_items)}")
+    if expiring_items:
+        print(f"DEBUG: First item type: {type(expiring_items[0])}")
+        print(f"DEBUG: First item content: {expiring_items[0]}")
+    
+    if not expiring_items:
+        return {"status": "no_risk", "messages": []}
+        
+    notifications = []
+    
+    # --- LOGIC 1: NOTIFIKASI KE UMKM (VENDOR) ---
+    # Group by Owner
+    vendor_items = {}
+    for item in expiring_items:
+        owner = item.get("owner_name", "Pedagang")
+        if owner not in vendor_items:
+            vendor_items[owner] = []
+        vendor_items[owner].append(item)
+        
+    # Lokasi SPPG (Monas - Jakarta Pusat)
+    sppg_lat = -6.175392
+    sppg_long = 106.827153
+    
+    for owner, items in vendor_items.items():
+        item_names = ", ".join([i['item_name'] for i in items])
+        
+        # Ambil lokasi salah satu item (asumsi pedagang di satu lokasi)
+        # Kalau gak ada GPS, pake default
+        v_lat = items[0].get('latitude')
+        v_long = items[0].get('longitude')
+        
+        dist_info = ""
+        if v_lat and v_long:
+            dist = haversine_distance(v_lat, v_long, sppg_lat, sppg_long)
+            dist_info = f"SPPG Jakarta Pusat hanya berjarak {dist:.1f} km dari Anda."
+        else:
+            dist_info = "Segera tawarkan ke SPPG terdekat."
+            
+        msg = {
+            "to": owner,
+            "role": "Vendor (UMKM)",
+            "type": "WARNING",
+            "message": f"⚠️ Halo {owner}! {item_names} Anda akan busuk dalam < 2 hari. {dist_info} Jual murah sekarang sebelum rugi!"
+        }
+        notifications.append(msg)
+        
+    # --- LOGIC 2: NOTIFIKASI KE SPPG (KITCHEN) ---
+    # SPPG butuh solusi (Resep)
+    all_expiring_names = [i['item_name'] for i in expiring_items]
+    
+    # Minta AI buatkan resep penyelamatan
+    # Kita reuse fungsi generate_menu_recommendation tapi dengan konteks "Rescue"
+    rescue_menu = generate_menu_recommendation(all_expiring_names)
+    
+    menu_name = rescue_menu.get("menu_name", "Tumis Campur")
+    
+    msg_sppg = {
+        "to": "Admin SPPG",
+        "role": "SPPG (Kitchen)",
+        "type": "URGENT + RECIPE",
+        "message": f"🚨 PERHATIAN: {', '.join(all_expiring_names)} di gudang pedagang hampir busuk! REKOMENDASI AI: Masak '{menu_name}' hari ini untuk menyelamatkan stok tersebut. ({rescue_menu.get('reason')})"
+    }
+    notifications.append(msg_sppg)
+    
+    return {"status": "success", "data": notifications}

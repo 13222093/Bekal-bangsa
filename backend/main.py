@@ -6,11 +6,14 @@ from services import (
     search_suppliers, 
     calculate_expiry_date, 
     upload_image_to_supabase,
-    kolosal_client
+    kolosal_client,
+    calculate_meal_expiry,
+    check_expiry_and_notify
 )
 from database import supabase
-from models import SupplyItem, MenuRequest, OrderRequest, OrderStatusUpdate, calculate_meal_expiry, CookRequest, MealAnalysisRequest
+from models import SupplyItem, MenuRequest, OrderRequest, OrderStatusUpdate, CookRequest, MealAnalysisRequest, IoTLogRequest
 from typing import List
+from datetime import datetime, timedelta
 
 app = FastAPI()
 
@@ -153,18 +156,6 @@ async def find_suppliers(q: str, lat: float = -6.175392, long: float = 106.82715
         "data": results
     }
 
-    # --- Update di paling atas (Import) ---
-from pydantic import BaseModel
-
-# --- Tambah Model Baru ---
-class OrderRequest(BaseModel):
-    supply_id: int
-    qty_ordered: int
-    buyer_name: str = "SPPG Jakarta Pusat"
-
-class OrderStatusUpdate(BaseModel):
-    status: str # 'confirmed' atau 'completed'
-
 # -- FITUR 6: SPPG Bikin Pesanan ---
 @app.post("/api/orders")
 async def create_order(order: OrderRequest):
@@ -195,41 +186,6 @@ async def get_incoming_orders():
 # -- FITUR 8: UMKM Update Status (Terima Pesanan) ---
 @app.put("/api/orders/{order_id}")
 async def update_order_status(order_id: int, update: OrderStatusUpdate):
-    try:
-        response = supabase.table("orders").update({"status": update.status}).eq("id", order_id).execute()
-        return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# -- FITUR 9: TRANSAKSI (ORDER MANAGEMENT) ---
-@app.post("/api/orders")
-async def create_order(order: OrderRequest):
-    """SPPG Membuat Pesanan Baru"""
-    try:
-        data = {
-            "supply_id": order.supply_id,
-            "qty_ordered": order.qty_ordered,
-            "buyer_name": order.buyer_name,
-            "status": "pending"
-        }
-        response = supabase.table("orders").insert(data).execute()
-        return {"status": "success", "data": response.data}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/orders/umkm")
-async def get_incoming_orders():
-    """UMKM Melihat Pesanan Masuk (Join dengan tabel supplies)"""
-    try:
-        # Syntax Supabase: select("*, supplies(*)") artinya join tabel supplies
-        response = supabase.table("orders").select("*, supplies(*)").order("created_at", desc=True).execute()
-        return response.data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.put("/api/orders/{order_id}")
-async def update_order_status(order_id: int, update: OrderStatusUpdate):
-    """Update Status Pesanan (Terima/Kirim)"""
     try:
         response = supabase.table("orders").update({"status": update.status}).eq("id", order_id).execute()
         return {"status": "success"}
@@ -321,3 +277,14 @@ async def get_iot_logs():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/notifications/trigger")
+def trigger_expiry_notifications():
+    """
+    Trigger manual cek kadaluarsa & generate notifikasi WhatsApp (Simulasi).
+    """
+    try:
+        return check_expiry_and_notify()
+    except Exception as e:
+        import traceback
+        traceback.print_exc() # Print ke terminal backend
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
