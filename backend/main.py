@@ -17,7 +17,11 @@ app = FastAPI()
 # Setup CORS (Biar Next.js di localhost:3000 bisa akses)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=[
+        "http://localhost:3000", # Next.js Local
+        "http://localhost:8000", # FastAPI Docs
+        "https://bekal-bangsa.vercel.app", # Production (Example)
+    ], 
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -104,12 +108,17 @@ async def create_supplies(items: List[SupplyItem]):
 
 # --- FITUR 3: LIHAT DASHBOARD (Database) ---
 @app.get("/api/supplies")
-async def get_supplies():
+async def get_supplies(skip: int = 0, limit: int = 100):
     """
     Buat Dashboard Admin SPPG: Ambil semua stok yg tersedia
+    Default limit 100 item biar gak berat.
     """
     try:
-        response = supabase.table("supplies").select("*").order("created_at", desc=True).execute()
+        # Pagination: Range di Supabase itu inclusive (0-99 = 100 items)
+        response = supabase.table("supplies").select("*")\
+            .order("created_at", desc=True)\
+            .range(skip, skip + limit - 1)\
+            .execute()
         return response.data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -232,9 +241,9 @@ async def cook_meal(request: CookRequest):
     Kurangi stok & Catat Produksi dengan Analisis Safety Lengkap
     """
     try:
-        # 1. Deduct Stock (Anggap berhasil)
-        for item_id in request.ingredients_ids:
-            supabase.table("supplies").delete().eq("id", item_id).execute()
+        # 1. Deduct Stock (Bulk Delete - Lebih Cepat)
+        if request.ingredients_ids:
+            supabase.table("supplies").delete().in_("id", request.ingredients_ids).execute()
         
         # 2. Tanya AI (Panggil fungsi yang baru kita update)
         # Note: Pastikan import calculate_meal_expiry sudah ada di atas
