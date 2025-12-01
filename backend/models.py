@@ -31,3 +31,12 @@ class OrderRequest(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: str # 'confirmed' atau 'completed'
+
+class CookRequest(BaseModel):
+    menu_name: str
+    qty_produced: int
+    ingredients_ids: List[int] # ID barang di gudang yang dipakai
+    
+class MealAnalysisRequest(BaseModel):
+    # Buat foto makanan jadi (Vision)
+    pass # Kita pake UploadFile langsung di main.py

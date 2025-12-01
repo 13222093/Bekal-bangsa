@@ -1,0 +1,16 @@
+# Streamlit Core
+streamlit==1.31.0
+
+# Data Handling
+pandas==2.2.0
+numpy==1.26.0
+
+# API Communication
+requests==2.31.0
+
+# Visuals
+pillow==10.2.0
+plotly>=5.18.0              # TAMBAHAN: Buat grafik dashboard yang keren
+
+# Utils
+python-dotenv==1.0.0

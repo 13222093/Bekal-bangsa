@@ -221,3 +221,68 @@ async def upload_image_to_supabase(file: UploadFile) -> str:
         # Jangan raise error biar flow gak putus, tapi return None atau string kosong
         # Nanti di main.py bisa dicek
         return None
+
+def analyze_cooked_meal(image_bytes):
+    """
+    VISI KOMPUTER UNTUK MAKANAN JADI (QC FINAL)
+    Cek basi/tidak, estimasi gizi visual.
+    """
+    print("🍱 Menganalisis Makanan Jadi...")
+    base64_image = encode_image_to_base64(image_bytes)
+    
+    prompt_text = """
+    Kamu adalah Ahli Keamanan Pangan & Gizi.
+    Analisis foto makanan matang (Lunch Box/Piring) ini.
+    
+    Tugas:
+    1. Deteksi menu apa ini.
+    2. SAFETY CHECK: Apakah terlihat basi? (Lendir, warna aneh, jamur).
+    3. NUTRITION: Estimasi kalori & nutrisi makro sepiring ini.
+    
+    Output JSON:
+    {
+        "menu_name": "...",
+        "is_safe": true/false,
+        "spoilage_signs": ["...", "..."] (jika ada),
+        "nutrition_estimate": {
+            "calories": "...",
+            "protein": "...",
+            "carbs": "..."
+        },
+        "visual_quality": "Sangat Menggugah Selera / Mencurigakan"
+    }
+    """
+    
+    # ... (Copy logic request ke Claude dari fungsi analyze_market_inventory, ganti prompt-nya) ...
+    # (Biar ringkas, gunakan pola yang sama: kolosal_client.chat.completions.create...)
+    # Return JSON hasil parsing.
+    # ...
+    
+    # --- CONTOH IMPLEMENTASI CEPAT (COPAS BAGIAN REQUEST CLAUDE DI BAWAH INI) ---
+    try:
+        response = kolosal_client.chat.completions.create(
+            model="Claude Sonnet 4.5",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt_text},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                    ]
+                }
+            ],
+            max_tokens=600
+        )
+        content = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
+        return json.loads(content)
+    except Exception as e:
+        return {"error": str(e)}
+
+def calculate_meal_expiry(menu_name):
+    """
+    Logic text-based: Minta Claude nentuin umur simpan makanan matang
+    """
+    # ... (Bisa dibuat simpel dengan prompt text ke Claude) ...
+    # Return: jumlah jam tahan lama (misal: Santan = 4 jam, Gorengan = 12 jam)
+    return 6 # Default dummy 6 jam
+

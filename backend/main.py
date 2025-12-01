@@ -224,3 +224,46 @@ async def update_order_status(order_id: int, update: OrderStatusUpdate):
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# --- FITUR 10: DAPUR PRODUKSI (COOKING) ---
+@app.post("/api/kitchen/cook")
+async def cook_meal(request: CookRequest):
+    """
+    1. Kurangi stok bahan mentah (Logic Deduct).
+    2. Catat produksi makanan jadi.
+    3. Hitung expired date (Misal: 6 jam dari sekarang).
+    """
+    try:
+        # 1. Deduct Stock (Looping ID bahan yang dipakai)
+        # Simplifikasi Hackathon: Kita tandai stok sbg "Used" atau kurangi qty
+        # Di sini kita anggap user memilih bahan yg dihabiskan
+        for item_id in request.ingredients_ids:
+            # Query update quantity = 0 (Anggap habis dipakai masak)
+            # Atau kurangi spesifik (Butuh logic lebih rumit, skip dulu buat MVP)
+            supabase.table("supplies").delete().eq("id", item_id).execute()
+        
+        # 2. Tanya AI: Menu ini tahan berapa lama?
+        # (Kita hardcode simple logic atau panggil services.calculate_meal_expiry)
+        hours_valid = 6 # Default 6 jam buat makanan basah
+        
+        # 3. Simpan ke meal_productions
+        data = {
+            "menu_name": request.menu_name,
+            "qty_produced": request.qty_produced,
+            "expiry_datetime": (datetime.now() + timedelta(hours=hours_valid)).isoformat(),
+            "status": "fresh",
+            "storage_tips": "Jangan tutup rapat saat panas. Simpan suhu ruang max 4 jam."
+        }
+        res = supabase.table("meal_productions").insert(data).execute()
+        return {"status": "success", "data": res.data}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- FITUR 11: MEAL SCANNER (VISION QC) ---
+@app.post("/api/kitchen/scan-meal")
+async def scan_meal(file: UploadFile = File(...)):
+    image_bytes = await file.read()
+    # Panggil fungsi baru di services.py
+    result = analyze_cooked_meal(image_bytes)
+    return result
