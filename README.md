@@ -1,15 +1,13 @@
-# Bekal Bangsa 
+## Bekal Bangsa ##
 
 *Latest Update: December 2, 2025*
 
----
-
 ## 1. Project Context & Objectives
 
-### 🎯 What is this project?
+### What is this project?
 **Bekal Bangsa** is a comprehensive platform designed to address critical issues in the **MBG (Makan Bergizi Gratis)** program and the local food (UMKM) ecosystem. The system addresses critical failures in the entire food supply chain, transforming manual operations into an intelligent, traceable ecosystem.
 
-**Current Pain Points:**
+### 🚨 Current Pain Points:
 The platform focuses on solving three core issues that threaten the stability and health objectives of the MBG program:
 
 1. **Supply Chain Security & Safety Risk:**
@@ -21,25 +19,42 @@ The platform focuses on solving three core issues that threaten the stability an
 3. **Nutritional Inefficiency & Food Waste:**
 - Issue: A constant mismatch between available market supply and kitchen demand leads to ingredients expiring (food waste). Menus are often planned generically, failing to maximize nutritional value based on fresh local stock.
 
-**Our Solution:**
-**A. Mitra Pedagang (UMKM) Empowerment:**
-- **Digital Cataloging:** Function: Helps UMKM create a Digital Catalog (inventory, price, quantity, and freshness with expiry date prediction) for their stock by simply taking photo. Outcome: Local UMKM gain smart cataloging for their stock.
+### 💡Our Solution:
 
-- **UMKM Integration into the MBG supply chain:** Function: Shows nearest SPPG Kitchen based on GPS coordinates for UMKM to sell their ingredients. Outcome: Local UMKM gain immediate, transparent access to the massive government procurement market and digital stock management.
+**A. 🤝 Mitra Pedagang (UMKM) Empowerment:**
+- **Digital Cataloging:** 
+    - Function: Helps UMKM create a Digital Catalog (inventory, price, quantity, and freshness with expiry date prediction) for their stock by simply taking photo. 
+    - Outcome: Local UMKM gain smart cataloging for their stock.
 
-- **Proactive Waste Mitigation (UMKM Warning):** Function: Sends a warning using whatsapp notification to the UMKM vendor to sell the nearly expiring ingredients to the nearest SPPG kitchen before it spoils. Outcome: UMKM vendor can sell the ingredients before it spoils, reducing food waste.
+- **UMKM Integration into the MBG supply chain:** 
+    - Function: Shows nearest SPPG Kitchen based on GPS coordinates for UMKM to sell their ingredients. 
+    - Outcome: Local UMKM gain immediate, transparent access to the massive government procurement market and digital stock management.
 
-**B. Portal SPPG (Admin & Kitchen):** 
-- **Smart & Efficient Logistics:** Function: Provides Real-time Geospatial Search to match SPPG demand with the nearest available UMKM supply. Outcome: Empowers local UMKM and ensures Fresh/Expiring stock is prioritized, optimizing nutritional output.
+- **Proactive Waste Mitigation (UMKM Warning):** 
+    - Function: Sends a warning using whatsapp notification to the UMKM vendor to sell the nearly expiring ingredients to the nearest SPPG kitchen before it spoils. 
+    - Outcome: UMKM vendor can sell the ingredients before it spoils, reducing food waste.
 
-- **Smart Dashboard & Inventory:** Function: Displays available supplies from all vendors in a single dashboard, sorted by freshness and expiry date. Outcome: Kitchen staff can track and plan procurement based on existing ingredients.
+**B. 🧠 Portal SPPG (Admin & Kitchen):** 
+- **Smart & Efficient Logistics:** 
+    - Function: Provides Real-time Geospatial Search to match SPPG demand with the nearest available UMKM supply. 
+    - Outcome: Empowers local UMKM and ensures Fresh/Expiring stock is prioritized, optimizing nutritional output.
 
-- **AI Menu Recommendation:** Function: Generates healthy and nutritious recipes based existing fresh ingredients catalog. Outcome: Kitchen staff can plan menus based on existing ingredients, reducing waste and ensuring nutritional value.
+- **Smart Dashboard & Inventory:** 
+    - Function: Displays available supplies from all vendors in a single dashboard, sorted by freshness and expiry date. 
+    - Outcome: Kitchen staff can track and plan procurement based on existing ingredients.
 
-- **Proactive Waste Mitigation (SPPG Warning):** Function: Sends a warning using whatsapp notification to the SPPG kitchen to create a healthy recommendation menu based on nearly expiring ingredients, ensuring that no ingredients goes to waste. Outcome: SPPG kitchen can optimize their menu based on existing ingredients before it spoils, signficantly reducing food waste.
+- **AI Menu Recommendation:** 
+    - Function: Generates healthy and nutritious recipes based existing fresh ingredients catalog. 
+    - Outcome: Kitchen staff can plan menus based on existing ingredients, reducing waste and ensuring nutritional value.
 
-**C. End-to-End Food Safety (Core AI Innovation)**
-- **AI Quality Control & Meal Safety:** Function: Uses Multimodal AI Vision and IoT sensors to automatically verify the freshness, nutrition, and estimate the absolute expiry date of menus cooked for MBG. Outcome: Guarantees that only safe and high-quality meals are served to the students, mitigating the risk of toxic and unhealthy food.
+- **Proactive Waste Mitigation (SPPG Warning):** 
+    - Function: Sends a warning using whatsapp notification to the SPPG kitchen to create a healthy recommendation menu based on nearly expiring ingredients, ensuring that no ingredients goes to waste. 
+    - Outcome: SPPG kitchen can optimize their menu based on existing ingredients before it spoils, signficantly reducing food waste.
+
+**C. 🍽️ End-to-End Food Safety (Core AI Innovation)**
+- **AI Quality Control & Meal Safety:** 
+    - Function: Uses Multimodal AI Vision and IoT sensors to automatically verify the freshness, nutrition, and estimate the absolute expiry date of menus cooked for MBG. 
+    - Outcome: Guarantees that only safe and high-quality meals are served to the students, mitigating the risk of toxic and unhealthy food.
 
 
 ### 👥 Users
