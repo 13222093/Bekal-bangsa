@@ -1,14 +1,13 @@
-# 🍱 Bekal Bangsa 
+# Bekal Bangsa 
 
-**Codebase Audit & Documentation Report**
-*Date: December 2, 2025*
+*Latest Update: December 2, 2025*
 
 ---
 
 ## 1. Project Context & Objectives
 
 ### 🎯 What is this project?
-**Bekal Bangsa** is a comprehensive platform designed to address critical issues in the **MBG (Makan Bergizi Gratis)** program and the local food (UMKM) ecosystem. The system addresses critical failures across the entire food supply chain, transforming manual operations into an intelligent, traceable ecosystem.
+**Bekal Bangsa** is a comprehensive platform designed to address critical issues in the **MBG (Makan Bergizi Gratis)** program and the local food (UMKM) ecosystem. The system addresses critical failures in the entire food supply chain, transforming manual operations into an intelligent, traceable ecosystem.
 
 **Current Pain Points:**
 The platform focuses on solving three core issues that threaten the stability and health objectives of the MBG program:
@@ -23,11 +22,25 @@ The platform focuses on solving three core issues that threaten the stability an
 - Issue: A constant mismatch between available market supply and kitchen demand leads to ingredients expiring (food waste). Menus are often planned generically, failing to maximize nutritional value based on fresh local stock.
 
 **Our Solution:**
-Bekal Bangsa integrates UMKMs into the MBG supply chain by:
--   **Connecting Vendors to Kitchens:** Helping UMKMs find the nearest SPPG (Kitchen Hub) to sell their inventory.
--   **Digitalizing Operations:** Creating a unified digital catalog for seamless stock management.
--   **Ensuring Safety & Nutrition:** Using AI to validate food quality (non-toxic) and calculate nutritional value.
--   **Reducing Waste:** Matching expiring ingredients with immediate kitchen needs.
+**A. Mitra Pedagang (UMKM) Empowerment:**
+- **Digital Cataloging:** Function: Helps UMKM create a Digital Catalog (inventory, price, quantity, and freshness with expiry date prediction) for their stock by simply taking photo. Outcome: Local UMKM gain smart cataloging for their stock.
+
+- **UMKM Integration into the MBG supply chain:** Function: Shows nearest SPPG Kitchen based on GPS coordinates for UMKM to sell their ingredients. Outcome: Local UMKM gain immediate, transparent access to the massive government procurement market and digital stock management.
+
+- **Proactive Waste Mitigation (UMKM Warning):** Function: Sends a warning using whatsapp notification to the UMKM vendor to sell the nearly expiring ingredients to the nearest SPPG kitchen before it spoils. Outcome: UMKM vendor can sell the ingredients before it spoils, reducing food waste.
+
+**B. Portal SPPG (Admin & Kitchen):** 
+- **Smart & Efficient Logistics:** Function: Provides Real-time Geospatial Search to match SPPG demand with the nearest available UMKM supply. Outcome: Empowers local UMKM and ensures Fresh/Expiring stock is prioritized, optimizing nutritional output.
+
+- **Smart Dashboard & Inventory:** Function: Displays available supplies from all vendors in a single dashboard, sorted by freshness and expiry date. Outcome: Kitchen staff can track and plan procurement based on existing ingredients.
+
+- **AI Menu Recommendation:** Function: Generates healthy and nutritious recipes based existing fresh ingredients catalog. Outcome: Kitchen staff can plan menus based on existing ingredients, reducing waste and ensuring nutritional value.
+
+- **Proactive Waste Mitigation (SPPG Warning):** Function: Sends a warning using whatsapp notification to the SPPG kitchen to create a healthy recommendation menu based on nearly expiring ingredients, ensuring that no ingredients goes to waste. Outcome: SPPG kitchen can optimize their menu based on existing ingredients before it spoils, signficantly reducing food waste.
+
+**C. End-to-End Food Safety (Core AI Innovation)**
+- **AI Quality Control & Meal Safety:** Function: Uses Multimodal AI Vision and IoT sensors to automatically verify the freshness, nutrition, and estimate the absolute expiry date of menus cooked for MBG. Outcome: Guarantees that only safe and high-quality meals are served to the students, mitigating the risk of toxic and unhealthy food.
+
 
 ### 👥 Users
 1.  **Pedagang Pasar (Vendors):** Upload photos of their inventory to sell/donate before it spoils.
