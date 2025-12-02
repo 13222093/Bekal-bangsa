@@ -188,8 +188,6 @@ Bekal-bangsa/
 
 ## 6. AI Logic Explanation
 
-### `analyze_market_inventory` (in `backend/services.py`)
-
 This function is the "Brain" of the intake process. It uses a **Single-Shot Prompting** strategy with Claude 4.5 Sonnet to perform three tasks simultaneously:
 
 1.  **Object Detection & Counting:** It visually identifies items (e.g., "Tomatoes") and estimates quantity (e.g., "3 kg" or "10 pcs").
