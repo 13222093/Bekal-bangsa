@@ -148,7 +148,7 @@ Bekal-bangsa/
 │   └── pages/
 │       ├── 1_upload.py     # Vendor: Upload photo, AI analysis, Search SPPG.
 │       ├── 2_dashboard_sppg.py # Admin: View stock, IoT logs, Menu Recs.
-│       ├── 3_tracking.py   # Tracking orders (Basic).
+│       ├── 3_pesanan_masuk.py # UMKM: View & Manage Incoming Orders.
 │       └── 4_dapur_produksi.py # Kitchen: Cook meals, Deduct stock, Nutrition Info.
 └── README.md               # This documentation.
 ```
@@ -161,6 +161,7 @@ Bekal-bangsa/
 -   **[✅ Functional] AI Inventory Scan:** Upload a photo, AI detects items, quantity, and freshness.
 -   **[✅ Functional] GPS Location:** Auto-detects (simulated) or manual input of vendor location.
 -   **[✅ Functional] Search Nearest SPPG:** Finds the closest Kitchen Hub based on GPS distance.
+-   **[✅ Functional] Incoming Orders:** View and manage orders from the government (SPPG).
 
 ### 👨‍🍳 For SPPG (Kitchen Admin)
 -   **[✅ Functional] Smart Dashboard:** View available supplies from all vendors.
@@ -171,6 +172,7 @@ Bekal-bangsa/
     -   **AI Nutrition Est:** Calculates Calories/Protein per serving.
     -   **AI Safety Check:** Estimates shelf-life.
 -   **[✅ Functional] IoT Monitoring:** Real-time chart of storage temperature/humidity.
+-   **[✅ Functional] Scan Food (QC):** Visual analysis of cooked meals for safety and nutrition verification.
 -   **[✅ Functional] Expiry Alerts:** WhatsApp-style notifications for expiring batches.
 
 ---
