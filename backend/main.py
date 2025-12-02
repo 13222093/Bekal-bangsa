@@ -1,18 +1,11 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from services import (
-    analyze_market_inventory, 
-    generate_menu_recommendation, 
-    search_suppliers, 
-    calculate_expiry_date, 
-    upload_image_to_supabase,
-    kolosal_client,
-    calculate_meal_expiry,
-    check_expiry_and_notify,
-    cook_meal,
-    analyze_cooked_meal,
-    search_nearest_sppg
-)
+from services.vision import analyze_market_inventory, analyze_cooked_meal
+from services.kitchen import generate_menu_recommendation, calculate_meal_expiry, cook_meal
+from services.logistics import search_suppliers, search_nearest_sppg
+from services.inventory import calculate_expiry_date, check_expiry_and_notify
+from services.storage import upload_image_to_supabase
+from services.clients import kolosal_client
 from database import supabase
 from models import SupplyItem, MenuRequest, OrderRequest, OrderStatusUpdate, CookRequest, MealAnalysisRequest, IoTLogRequest
 from typing import List

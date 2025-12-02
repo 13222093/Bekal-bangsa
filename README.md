@@ -132,7 +132,13 @@ streamlit run frontend_streamlit/Home.py
 Bekal-bangsa/
 ├── backend/
 │   ├── main.py             # Entry point. Defines API endpoints and connects services.
-│   ├── services.py         # Business logic: AI calls, DB operations, Distance calc.
+│   ├── services/           # Business logic modules (Refactored):
+│   │   ├── vision.py       # AI Image Analysis (Claude Vision).
+│   │   ├── kitchen.py      # Cooking, Menu Recs, & Nutrition Logic.
+│   │   ├── logistics.py    # Geospatial Search & SPPG Locations.
+│   │   ├── inventory.py    # Expiry Checks & WhatsApp Notifications.
+│   │   ├── storage.py      # File Uploads to Supabase.
+│   │   └── clients.py      # Shared Client Initialization.
 │   ├── models.py           # Pydantic models for Data Validation (Request/Response).
 │   ├── prompts.py          # Centralized AI Prompts for Claude Sonnet.
 │   ├── iot_simulator.py    # Script to simulate IoT sensor data sending to API.
@@ -168,18 +174,6 @@ Bekal-bangsa/
 -   **[✅ Functional] Expiry Alerts:** WhatsApp-style notifications for expiring batches.
 
 ---
-
-## 5. Application Data Flow (End-to-End)
-
-**Scenario: A Vendor uploads a basket of vegetables.**
-
-1.  **Capture:** User takes a photo in `1_upload.py` (Streamlit).
-2.  **Upload:** Image is sent to `POST /api/upload` -> Saved to Supabase Storage -> Returns URL.
-3.  **Analyze:** Image bytes sent to `POST /api/analyze`.
-    -   **Backend:** `services.analyze_market_inventory` calls **Claude 4.5 Sonnet**.
-    -   **AI:** Identifies "5kg Spinach, Fresh".
-    -   **Response:** JSON data returned to Frontend.
-4.  **Review:** User verifies data in Streamlit form, adds GPS location.
 5.  **Save:** User clicks "Simpan". Data sent to `POST /api/supplies`.
     -   **Database:** Saved to `supplies` table in Supabase.
 6.  **Visualize:** Data immediately appears on `2_dashboard_sppg.py` for the Kitchen Admin to see.
