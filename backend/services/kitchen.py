@@ -26,8 +26,16 @@ def generate_menu_recommendation(ingredients_list):
         
         content = response.choices[0].message.content
         print(f"🤖 Raw AI Response: {content}") # Debug print
-        cleaned_content = content.replace("```json", "").replace("```", "").strip()
-        return json.loads(cleaned_content)
+        
+        # Robust JSON Extraction
+        import re
+        json_match = re.search(r'\{.*\}|\[.*\]', content, re.DOTALL)
+        if json_match:
+            cleaned_content = json_match.group(0)
+            return json.loads(cleaned_content)
+        else:
+            # Fallback if no JSON found
+            return {"error": "AI did not return valid JSON", "raw": content}
         
     except Exception as e:
         print(f"❌ Error Menu AI: {e}")

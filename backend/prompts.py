@@ -30,36 +30,43 @@ def get_inventory_analysis_prompt():
 
 def get_menu_recommendation_prompt(ingredients_text):
     return f"""
-    Saya punya stok bahan berikut di gudang: {ingredients_text}.
-    
-    Buatkan 1 Rekomendasi Menu Makan Siang Bergizi Gratis (MBG) untuk anak sekolah.
-    Sertakan juga step by step langkah memasaknya
-    Syarat: Murah, Bergizi, Praktis, Lokal.
-    
-    Output JSON:
+    Kamu adalah Ahli Gizi dan Koki untuk program Makan Bergizi Gratis (MBG).
+    STOK BAHAN TERSEDIA di gudang: {ingredients_text}.
+
+    Tugasmu:
+    1. Rancang Menu Makan Siang **Terbaik** untuk anak sekolah, berdasarkan bahan yang tersedia (meskipun menu hanya terdiri dari satu komponen, itu tidak masalah).
+    2. Sesuaikan hidangan berdasarkan bahan, jangan memaksakan bahan untuk membuat hidangan yang aneh. Hidangan bisa berupa makanan gurih/asin, bisa manis/dessert, bisa kudapan, bisa minuman.
+    contoh: bahan hanya semangka, maka menu adalah jus semangka bukan nasi goreng semangka
+    3. Kepatuhan: Menu harus memenuhi syarat **Murah, Bergizi, Praktis, dan Lokal**.
+
+    Output HANYA dalam format JSON raw (tanpa markdown ```json):
     {{
-        "menu_name": "Nama Masakan",
-        "description": "Deskripsi singkat menggugah selera",
-        "ingredients_needed": [
-            "Bahan A (Qty)", 
-            "Bahan B (Qty)"
-        ],
-        "cooking_steps": [
-            "Langkah 1...",
-            "Langkah 2..."
-        ],
-        "nutrition": {{
-            "calories": "Estimasi Kalori (misal: 500 kcal)",
-            "protein": "Estimasi Protein (misal: 20g)",
-            "carbs": "Estimasi Karbohidrat",
-            "fats": "Estimasi Lemak",
-            "vitamins": "Vitamin utama (misal: Vit C, Vit A)"
-        }},
-        "reason": "Kenapa menu ini cocok dengan bahan yg ada",
-        "ingredients_used": ["Bahan A", "Bahan B"]
+        "recommendations": [
+            {{
+                "menu_name": "Nama Menu Final (Contoh: Potongan Semangka Saja)",
+                "description": "Deskripsi singkat tentang menu ini.",
+                "ingredients": ["List bahan yang digunakan dari stok", "termasuk buah/penutup"],
+                "ingredients_needed": [
+                    "Sebutkan BAHAN dan KUANTITAS spesifik (Contoh: Ayam 5 kg)",
+                    "Contoh: Beras 10 kg"
+                ],
+                "cooking_steps": [
+                    "Langkah 1: Siapkan...",
+                    "Langkah 2: Proses memasak...",
+                    "Langkah 3: Sajikan..."
+                ],
+                "nutrition": {{
+                    "calories": "Estimasi Kalori (misal: 500 kcal)",
+                    "protein": "Estimasi Protein (misal: 20g)",
+                    "carbs": "Estimasi Karbohidrat",
+                    "fats": "Estimasi Lemak"
+                }},
+                "reason": "Jelaskan kenapa menu ini cocok."
+            }}
+        ]
     }}
     """
-
+    
 def get_cooked_meal_analysis_prompt():
     return """
     Kamu adalah Ahli Keamanan Pangan & Gizi.
@@ -67,20 +74,29 @@ def get_cooked_meal_analysis_prompt():
     
     Tugas:
     1. Deteksi menu apa ini.
-    2. SAFETY CHECK: Apakah terlihat basi? (Lendir, warna aneh, jamur).
+    2. SAFETY CHECK: Apakah terlihat basi? (Lendir, warna aneh, jamur, bau).
     3. NUTRITION: Estimasi kalori & nutrisi makro sepiring ini.
     
-    Output JSON:
+    PENTING: 
+    - ANALISIS GAMBAR YANG DIBERIKAN, jangan asal copy contoh
+    - is_safe: true jika makanan AMAN, false jika ADA TANDA-TANDA PEMBUSUKAN
+    - spoilage_signs: isi dengan tanda pembusukan yang terlihat (jika ada), kosongkan [] jika aman
+    - Nilai nutrition_estimate harus ANGKA saja (contoh: "650", bukan "650-750 kkal")
+    - Gunakan key "fats" bukan "fat"
+    - JANGAN tambahkan field seperti "fiber", "detail_analysis", dll
+    
+    Output HANYA JSON dengan format ini:
     {
-        "menu_name": "...",
-        "is_safe": true/false,
-        "spoilage_signs": ["...", "..."] (jika ada),
+        "menu_name": "Nama menu berdasarkan analisis gambar",
+        "is_safe": true atau false (ANALISIS GAMBAR!),
+        "spoilage_signs": ["tanda1", "tanda2"] atau [] jika aman,
         "nutrition_estimate": {
-            "calories": "...",
-            "protein": "...",
-            "carbs": "..."
+            "calories": "estimasi angka",
+            "protein": "estimasi angka",
+            "carbs": "estimasi angka",
+            "fats": "estimasi angka"
         },
-        "visual_quality": "Sangat Menggugah Selera / Mencurigakan"
+        "visual_quality": "Deskripsi kualitas visual"
     }
     """
 

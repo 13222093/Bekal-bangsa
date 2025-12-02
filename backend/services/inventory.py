@@ -18,8 +18,8 @@ def check_expiry_and_notify():
     """
     print("🔔 Checking expiry for notifications...")
     
-    # 1. Ambil data yang mau busuk
-    response = supabase.table("supplies").select("*").lte("expiry_days", 2).execute()
+    # 1. Ambil data yang mau busuk (Warning H-7)
+    response = supabase.table("supplies").select("*").lte("expiry_days", 7).execute()
     expiring_items = response.data
     
     print(f"DEBUG: expiring_items type: {type(expiring_items)}")
@@ -70,12 +70,45 @@ def check_expiry_and_notify():
         
     # --- LOGIC 2: NOTIFIKASI KE SPPG (KITCHEN) ---
     # SPPG butuh solusi (Resep)
-    all_expiring_names = [i['item_name'] for i in expiring_items]
+    all_expiring_names = sorted([i['item_name'] for i in expiring_items])
+    items_hash = ",".join(all_expiring_names)
     
-    # Minta AI buatkan resep penyelamatan
-    # Kita reuse fungsi generate_menu_recommendation tapi dengan konteks "Rescue"
-    rescue_menu = generate_menu_recommendation(all_expiring_names)
+    # Simple In-Memory Cache (Global variable for hackathon scope)
+    global _RESCUE_MENU_CACHE
+    if '_RESCUE_MENU_CACHE' not in globals():
+        _RESCUE_MENU_CACHE = {"hash": "", "menu": None}
+        
+    if _RESCUE_MENU_CACHE["hash"] == items_hash and _RESCUE_MENU_CACHE["menu"]:
+        print("⚡ Using Cached Rescue Menu (Saving Tokens)")
+        rescue_menu = _RESCUE_MENU_CACHE["menu"]
+    else:
+        print("🤖 Generating New Rescue Menu via AI...")
+        # Minta AI buatkan resep penyelamatan
+        # Kita reuse fungsi generate_menu_recommendation tapi dengan konteks "Rescue"
+        rescue_menu_data = generate_menu_recommendation(all_expiring_names)
+        
+        # Handle new format {"recommendations": [...]}
+        if "recommendations" in rescue_menu_data and isinstance(rescue_menu_data["recommendations"], list) and len(rescue_menu_data["recommendations"]) > 0:
+            rescue_menu = rescue_menu_data["recommendations"][0]
+        elif isinstance(rescue_menu_data, list) and len(rescue_menu_data) > 0:
+            rescue_menu = rescue_menu_data[0]
+        elif isinstance(rescue_menu_data, dict) and "menu_name" in rescue_menu_data:
+             rescue_menu = rescue_menu_data
+        else:
+            print(f"⚠️ Invalid Rescue Menu Data: {rescue_menu_data}")
+            rescue_menu = None
+            
+        _RESCUE_MENU_CACHE = {"hash": items_hash, "menu": rescue_menu}
     
+    if not rescue_menu:
+        # Return without rescue menu if AI failed
+         return {
+            "status": "success", 
+            "data": notifications,
+            "expiring_items": expiring_items,
+            "rescue_menu": None
+        }
+
     menu_name = rescue_menu.get("menu_name", "Tumis Campur")
     
     # Format pesan WhatsApp yang rapi
@@ -106,4 +139,10 @@ def check_expiry_and_notify():
     }
     notifications.append(msg_sppg)
     
-    return {"status": "success", "data": notifications}
+    # Return structured data for Frontend
+    return {
+        "status": "success", 
+        "data": notifications,
+        "expiring_items": expiring_items,
+        "rescue_menu": rescue_menu
+    }

@@ -5,6 +5,7 @@ from services.kitchen import generate_menu_recommendation, calculate_meal_expiry
 from services.logistics import search_suppliers, search_nearest_sppg
 from services.inventory import calculate_expiry_date, check_expiry_and_notify
 from services.storage import upload_image_to_supabase
+from services.analytics import get_kitchen_analytics, get_vendor_analytics
 from services.clients import kolosal_client
 from database import supabase
 from models import SupplyItem, MenuRequest, OrderRequest, OrderStatusUpdate, CookRequest, MealAnalysisRequest, IoTLogRequest
@@ -39,9 +40,13 @@ async def analyze_image(file: UploadFile = File(...)):
     """
     try:
         image_bytes = await file.read()
-        result = analyze_market_inventory(image_bytes)
+        # Run synchronous AI call in a separate thread to avoid blocking the event loop
+        from fastapi.concurrency import run_in_threadpool
+        result = await run_in_threadpool(analyze_market_inventory, image_bytes)
         return result
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/upload")
@@ -124,11 +129,38 @@ async def get_supplies(skip: int = 0, limit: int = 100):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/supplies/vendor")
+async def get_vendor_supplies():
+    """
+    Returns supplies for the vendor dashboard charts.
+    Format: {"supplies": [...]}
+    """
+    try:
+        response = supabase.table("supplies").select("*").order("created_at", desc=True).execute()
+        return {"supplies": response.data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analytics/kitchen")
+async def kitchen_analytics():
+    result = get_kitchen_analytics()
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    return result
+
+@app.get("/api/analytics/vendor")
+async def vendor_analytics():
+    result = get_vendor_analytics()
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    return result
+
 # --- FITUR 4: REKOMENDASI MENU (AI Reasoning) ---
 @app.post("/api/recommend-menu")
 async def recommend_menu(request: MenuRequest):
     # Logicnya udah dipindah ke services, main.py tinggal panggil doang
-    result = generate_menu_recommendation(request.ingredients)
+    from fastapi.concurrency import run_in_threadpool
+    result = await run_in_threadpool(generate_menu_recommendation, request.ingredients)
     
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])
@@ -274,3 +306,18 @@ async def find_nearest_sppg(lat: float, long: float):
         return {"status": "success", "data": results}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@app.post("/api/kitchen/scan-food")
+async def scan_food(file: UploadFile = File(...)):
+    """
+    Endpoint untuk scan bahan makanan mentah di kitchen (QC Incoming).
+    Reuse logic analyze_market_inventory.
+    """
+    try:
+        image_bytes = await file.read()
+        from fastapi.concurrency import run_in_threadpool
+        # Use analyze_cooked_meal as requested by user for QC
+        result = await run_in_threadpool(analyze_cooked_meal, image_bytes)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
