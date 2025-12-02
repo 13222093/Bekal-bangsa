@@ -21,7 +21,7 @@ The backend follows a **Service-Oriented Architecture (SOA)** pattern (monolithi
 
 ## 2. Folder Structure Explained
 
-We recently refactored the "God Object" `services.py` into a clean `services/` package.
+We recently refactored `services.py` which has too many rows of code, into a clean `services/` package.
 
 ```text
 backend/
