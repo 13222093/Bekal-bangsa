@@ -1,9 +1,38 @@
 from pydantic import BaseModel
 from typing import Optional, List
 
-# --- 1. MODEL DATA BARANG (SUPPLY) ---
+# ==========================================
+# 🔐 1. AUTH MODELS (OTENTIKASI)
+# ==========================================
+
+class UserRegister(BaseModel):
+    full_name: str
+    email: str
+    username: str
+    password: str
+    role: str # 'vendor' atau 'kitchen'
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
+
+class UserLogin(BaseModel):
+    username_or_email: str
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    user: dict
+
+class GoogleLoginRequest(BaseModel):
+    token: str
+    role: str = "vendor" # Default role jika user baru
+
+# ==========================================
+# 📦 2. SUPPLY CHAIN MODELS (STOK)
+# ==========================================
+
 class SupplyItem(BaseModel):
-    # Field Wajib (dari AI)
+    # Field Wajib (dari AI/Input User)
     name: str           # Contoh: "Bawang Merah"
     qty: int            # Contoh: 5
     unit: str           # Contoh: "Pcs"
@@ -12,8 +41,10 @@ class SupplyItem(BaseModel):
     
     # Field Optional (Default Value)
     note: Optional[str] = None      # Alasan AI
-    owner_name: str = "Pedagang Pasar"  
-    location: str = "Pasar Tradisional" 
+    
+    # Field ini akan diisi otomatis oleh Backend berdasarkan Token Login
+    owner_name: Optional[str] = None  
+    location: Optional[str] = None 
     
     # Field Lokasi (GPS)
     latitude: Optional[float] = None
@@ -23,18 +54,21 @@ class SupplyItem(BaseModel):
     photo_url: Optional[str] = None     # Link Foto Bukti
     expiry_date: Optional[str] = None   # Tanggal Pasti (YYYY-MM-DD)
 
-# --- 2. MODEL REQUEST MENU (DEMAND) ---
+# ==========================================
+# 🍽️ 3. KITCHEN & ORDER MODELS (TRANSAKSI)
+# ==========================================
+
 class MenuRequest(BaseModel):
     ingredients: List[str] # Contoh: ["Bayam", "Tahu"]
 
-# --- 3. MODEL TRANSAKSI (ORDER) ---
 class OrderRequest(BaseModel):
     supply_id: int
     qty_ordered: int
-    buyer_name: str = "SPPG Jakarta Pusat"
+    # Buyer name diambil otomatis dari Token Login
+    buyer_name: Optional[str] = None 
 
 class OrderStatusUpdate(BaseModel):
-    status: str # 'confirmed' atau 'completed'
+    status: str # 'confirmed', 'completed', 'pending'
 
 class CookRequest(BaseModel):
     menu_name: str
@@ -42,10 +76,13 @@ class CookRequest(BaseModel):
     ingredients_ids: List[int] # ID barang di gudang yang dipakai
     
 class MealAnalysisRequest(BaseModel):
-    # Buat foto makanan jadi (Vision)
-    pass # Kita pake UploadFile langsung di main.py
+    # Model dummy untuk dokumentasi, implementasi pakai UploadFile di main.py
+    pass 
 
-# --- 4. MODEL IOT (SMART STORAGE) ---
+# ==========================================
+# 📡 4. IOT & SMART STORAGE MODELS
+# ==========================================
+
 class IoTLogRequest(BaseModel):
     temperature: float
     humidity: float

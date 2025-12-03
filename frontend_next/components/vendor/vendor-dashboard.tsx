@@ -19,20 +19,46 @@ export default function VendorDashboard({ onLogout }: VendorDashboardProps) {
   const [activeTab, setActiveTab] = useState<"dashboard" | "upload" | "orders" | "sppg" | "history" | "settings">("dashboard")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [analytics, setAnalytics] = useState<any>(null)
+  
+  // State untuk menyimpan data user yang sedang login
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
+    // 1. Ambil Data User dari LocalStorage
+    const userData = localStorage.getItem("user")
+    const token = localStorage.getItem("token")
+
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData))
+      } catch (e) {
+        console.error("Gagal parsing data user:", e)
+      }
+    }
+
+    // 2. Fetch Analytics (Dengan Token)
     const fetchAnalytics = async () => {
       try {
-        const response = await fetch("/api/analytics/vendor")
-        const data = await response.json()
-        setAnalytics(data)
+        const headers: Record<string, string> = { "Content-Type": "application/json" }
+        if (token) headers["Authorization"] = `Bearer ${token}`
+
+        const response = await fetch("/api/analytics/vendor", { headers })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setAnalytics(data)
+        } else {
+          console.error("Gagal mengambil data analytics vendor")
+        }
       } catch (error) {
         console.error("Error fetching vendor analytics:", error)
       }
     }
+    
     fetchAnalytics()
   }, [])
 
+  // Fungsi untuk merender konten berdasarkan tab yang aktif
   const renderContent = () => {
     switch (activeTab) {
       case "upload":
@@ -54,11 +80,19 @@ export default function VendorDashboard({ onLogout }: VendorDashboardProps) {
           </div>
         )
       case "dashboard":
+      default:
         return (
           <div className="space-y-6 animate-in fade-in duration-500">
-            <ConnectionStatus />
+            {/* Widget Status Koneksi & Lokasi */}
+            <ConnectionStatus location={user?.address || "Lokasi Belum Diatur"} />
+            
+            {/* Statistik Ringkas */}
             <InventoryHealth data={analytics?.inventory_health} />
+            
+            {/* Grafik Analisis */}
             <QuickInsights data={analytics} />
+            
+            {/* Tabel Inventaris (List Produk) */}
             <InventoryList role="vendor" />
           </div>
         )
@@ -67,9 +101,15 @@ export default function VendorDashboard({ onLogout }: VendorDashboardProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <VendorNavbar vendorName="Pak Asep" onLogout={onLogout} onMenuToggle={setSidebarOpen} />
+      {/* NAVBAR: Kirim nama user asli ke komponen navbar */}
+      <VendorNavbar 
+        vendorName={user?.full_name || "Mitra Vendor"} 
+        onLogout={onLogout} 
+        onMenuToggle={setSidebarOpen} 
+      />
 
       <div className="flex">
+        {/* SIDEBAR: Menu navigasi kiri */}
         <VendorSidebar
           activeTab={activeTab}
           onTabChange={setActiveTab as any}
@@ -77,9 +117,11 @@ export default function VendorDashboard({ onLogout }: VendorDashboardProps) {
           onClose={() => setSidebarOpen(false)}
         />
 
-        {/* Main Content */}
+        {/* MAIN CONTENT: Area isi utama */}
         <main className="flex-1 bg-gray-50/50 min-h-[calc(100vh-64px)]">
-          <div className="w-full px-6 py-8">{renderContent()}</div>
+          <div className="w-full px-4 sm:px-6 py-8">
+            {renderContent()}
+          </div>
         </main>
       </div>
     </div>

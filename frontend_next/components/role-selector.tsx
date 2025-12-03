@@ -3,12 +3,17 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ShoppingCart, UtensilsCrossed, Leaf } from "lucide-react"
+import { useRouter } from "next/navigation"
 
-interface RoleSelectorProps {
-  onSelectRole: (role: "vendor" | "kitchen") => void
-}
+export default function RoleSelector() {
+  const router = useRouter()
 
-export default function RoleSelector({ onSelectRole }: RoleSelectorProps) {
+  const handleSelectRole = (role: "vendor" | "kitchen") => {
+    // Redirect ke halaman Login dengan query param role
+    // Halaman login nanti akan membaca param ini untuk menyesuaikan judul & form
+    router.push(`/login?role=${role}`)
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-emerald-600 to-primary p-4">
       <div className="w-full max-w-6xl space-y-8">
@@ -23,12 +28,13 @@ export default function RoleSelector({ onSelectRole }: RoleSelectorProps) {
           <p className="text-emerald-100 text-sm md:text-base">Platform Cerdas untuk Ekosistem Pangan Lokal</p>
         </div>
 
-        {/* Role Selection */}
+        {/* Role Selection Cards */}
         <div className="grid md:grid-cols-2 gap-8 md:gap-6">
+          
           {/* Vendor Card */}
           <Card
-            className="border-0 shadow-xl hover:shadow-2xl transition-all cursor-pointer group overflow-hidden"
-            onClick={() => onSelectRole("vendor")}
+            className="border-0 shadow-xl hover:shadow-2xl transition-all cursor-pointer group overflow-hidden relative"
+            onClick={() => handleSelectRole("vendor")}
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-secondary to-amber-400"></div>
             <CardHeader className="text-center pb-4">
@@ -67,8 +73,8 @@ export default function RoleSelector({ onSelectRole }: RoleSelectorProps) {
 
           {/* Kitchen Card */}
           <Card
-            className="border-0 shadow-xl hover:shadow-2xl transition-all cursor-pointer group overflow-hidden"
-            onClick={() => onSelectRole("kitchen")}
+            className="border-0 shadow-xl hover:shadow-2xl transition-all cursor-pointer group overflow-hidden relative"
+            onClick={() => handleSelectRole("kitchen")}
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-emerald-400"></div>
             <CardHeader className="text-center pb-4">
