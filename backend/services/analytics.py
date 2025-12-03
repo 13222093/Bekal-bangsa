@@ -10,7 +10,7 @@ def get_kitchen_analytics():
     3. Metrics: Total Items, Total Qty, Warning Count
     """
     try:
-        # Fetch all supplies
+        # Fetch all supplies (Kitchen sees global stock in market)
         response = supabase.table("supplies").select("*").execute()
         items = response.data
         
@@ -85,16 +85,18 @@ def get_kitchen_analytics():
         print(f"Error getting kitchen analytics: {e}")
         return {"error": str(e)}
 
-def get_vendor_analytics():
+def get_vendor_analytics(user_id: int):
     """
     Aggregates data for Vendor Dashboard.
+    FILTERED BY USER ID (Private Data).
     1. Inventory Health: Count Fresh/Warning/Expired
     2. Expiry Risk: Pie Chart
     3. Top Sales: Bar Chart (from Orders)
     """
     try:
-        # --- Inventory Health & Expiry Risk ---
-        response = supabase.table("supplies").select("*").execute()
+        # --- Inventory Health & Expiry Risk (FILTERED) ---
+        # Hanya ambil barang milik user yang sedang login
+        response = supabase.table("supplies").select("*").eq("user_id", user_id).execute()
         items = response.data
         
         fresh = 0
@@ -122,9 +124,9 @@ def get_vendor_analytics():
             {"name": "Kadaluwarsa", "value": expired, "fill": "#EF4444"}
         ]
 
-        # --- Top Sales ---
-        # Fetch orders
-        orders_resp = supabase.table("orders").select("*, supplies(item_name)").execute()
+        # --- Top Sales (FILTERED) ---
+        # Fetch orders where seller_id matches user_id
+        orders_resp = supabase.table("orders").select("*, supplies(item_name)").eq("seller_id", user_id).execute()
         orders = orders_resp.data
         
         sales_map = defaultdict(int)

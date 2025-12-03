@@ -469,11 +469,17 @@ async def kitchen_analytics_endpoint(request: Request):
     return result
 
 @app.get("/api/analytics/vendor")
-async def vendor_analytics_endpoint(request: Request):
-    result = get_vendor_analytics()
-    if "error" in result: raise HTTPException(status_code=500, detail=result["error"])
-    return result
+async def vendor_analytics_endpoint(request: Request, current_user: dict = Depends(get_current_user)):
+    # Pastikan user adalah vendor
+    if current_user["role"] != "vendor":
+        raise HTTPException(status_code=403, detail="Akses ditolak")
 
+    # Kirim user_id ke fungsi analytics
+    result = get_vendor_analytics(current_user["user_id"])
+    
+    if "error" in result: 
+        raise HTTPException(status_code=500, detail=result["error"])
+    return result
 # ==========================================
 # 📡 BAGIAN 6: IOT & NOTIFIKASI
 # ==========================================
