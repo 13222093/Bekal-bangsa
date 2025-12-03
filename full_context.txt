@@ -56,6 +56,7 @@ Project Context Scan
                 dashboard-overview.tsx
                 expiry-alerts.tsx
                 iot-monitoring.tsx
+                kitchen-chatbot.tsx
                 kitchen-dashboard-overview.tsx
                 kitchen-dashboard.tsx
                 kitchen-inbox.tsx
@@ -498,7 +499,8 @@ from pydantic import BaseModel
 from database import supabase
 from models import (
     SupplyItem, MenuRequest, OrderRequest, OrderStatusUpdate, 
-    CookRequest, IoTLogRequest, UserRegister, UserLogin, Token
+    CookRequest, IoTLogRequest, UserRegister, UserLogin, Token,
+    GoogleLoginRequest, ChatRequest
 )
 
 # --- SECURITY ---
@@ -516,7 +518,7 @@ import os
 
 # --- SERVICES ---
 from services.vision import analyze_market_inventory, analyze_cooked_meal
-from services.kitchen import generate_menu_recommendation, cook_meal
+from services.kitchen import generate_menu_recommendation, cook_meal, chat_with_chef
 from services.logistics import search_suppliers, search_nearest_sppg
 from services.inventory import calculate_expiry_date, check_expiry_and_notify
 from services.storage import upload_image_to_supabase
@@ -710,25 +712,45 @@ async def get_my_supplies(request: Request, current_user: dict = Depends(get_cur
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# backend/main.py
+
 @app.get("/api/orders/umkm")
 async def get_incoming_orders(request: Request, current_user: dict = Depends(get_current_user)):
     # 1. Cek Role
     if current_user["role"] != "vendor":
         raise HTTPException(status_code=403, detail="Akses ditolak")
 
-    print(f"🔍 Fetching orders for Seller ID: {current_user['user_id']}") # Debug Log
+    print(f"🔍 Fetching orders for Seller ID: {current_user['user_id']}") # Debug Log di Terminal
 
     try:
-        # 2. Query Utama: Ambil order berdasarkan seller_id
-        # Kita join dengan supplies untuk dapat nama barang
-        orders = supabase.table("orders")\
+        # STRATEGI 1: Cari berdasarkan seller_id (Langsung & Cepat)
+        orders_query = supabase.table("orders")\
             .select("*, supplies(item_name, unit)")\
             .eq("seller_id", current_user["user_id"])\
             .order("created_at", desc=True)\
             .execute()
+        
+        orders_data = orders_query.data
+
+        # STRATEGI 2: Fallback (Jika data lama belum punya seller_id)
+        if not orders_data:
+            print("⚠️ No orders found by seller_id. Trying fallback via supply ownership...")
             
-        print(f"✅ Found {len(orders.data)} orders") # Debug Log
-        return {"orders": orders.data}
+            # A. Cari ID semua barang milik vendor ini
+            my_supplies = supabase.table("supplies").select("id").eq("user_id", current_user["user_id"]).execute()
+            my_supply_ids = [s['id'] for s in my_supplies.data]
+            
+            if my_supply_ids:
+                # B. Cari Order yang supply_id-nya ada di list barang saya
+                fallback_query = supabase.table("orders")\
+                    .select("*, supplies(item_name, unit)")\
+                    .in_("supply_id", my_supply_ids)\
+                    .order("created_at", desc=True)\
+                    .execute()
+                orders_data = fallback_query.data
+
+        print(f"✅ Found {len(orders_data)} orders") # Debug Log
+        return {"orders": orders_data}
 
     except Exception as e:
         print(f"❌ Error fetching orders: {e}")
@@ -1061,6 +1083,26 @@ async def google_login(data: GoogleLoginRequest):
         print(f"Google Login Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Tambahkan di BAGIAN 3 (FITUR KITCHEN)
+
+@app.post("/api/kitchen/chat")
+async def chat_chef_endpoint(request: Request, chat_data: ChatRequest, current_user: dict = Depends(get_current_user)):
+    """
+    Endpoint Chatbot AI Chef dengan konteks stok.
+    """
+    if current_user["role"] != "kitchen":
+        raise HTTPException(status_code=403, detail="Akses ditolak")
+        
+    try:
+        # Panggil service
+        # Import fungsi chat_with_chef dulu di bagian atas file main.py!
+        # from services.kitchen import chat_with_chef
+        
+        result = await run_in_threadpool(chat_with_chef, chat_data.message, current_user["user_id"])
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 ==================================================
 FILENAME: .\backend\models.py
 ==================================================
@@ -1153,6 +1195,10 @@ class IoTLogRequest(BaseModel):
     temperature: float
     humidity: float
     device_id: str = "SENSOR-01"
+
+class ChatRequest(BaseModel):
+    message: str
+    context: Optional[str] = "general" # 'cooking', 'shopping', etc
 
 ==================================================
 FILENAME: .\backend\prompts.py
@@ -1878,6 +1924,52 @@ def mark_meal_as_served(meal_id: int):
         print(f"❌ Gagal update status served: {e}")
         return {"error": str(e)}
 
+# backend/services/kitchen.py
+
+def chat_with_chef(user_message: str, user_id: int):
+    """
+    Chatbot Koki Pintar.
+    Otomatis inject data stok user ke dalam prompt.
+    """
+    try:
+        # 1. Ambil Stok User dari DB
+        response = supabase.table("supplies").select("item_name, quantity, unit").eq("user_id", user_id).execute()
+        supplies = response.data
+        
+        # Format stok jadi string biar Claude ngerti
+        stock_list = "\n".join([f"- {s['item_name']} ({s['quantity']} {s['unit']})" for s in supplies])
+        
+        # 2. System Prompt yang Kuat
+        system_prompt = f"""
+        Kamu adalah "Chef Bekal", asisten dapur AI yang ramah, solutif, dan ahli gizi untuk program Makan Bergizi Gratis.
+        
+        DATA STOK GUDANG USER SAAT INI:
+        {stock_list}
+        
+        TUGAS KAMU:
+        1. Jawab pertanyaan user terkait masakan, resep, atau manajemen dapur.
+        2. Jika user minta resep, PRIORITASKAN bahan yang ada di stok mereka.
+        3. Jika bahan KURANG, sebutkan bahan apa yang kurang dan sarankan untuk membelinya di "Menu Cari Supplier" (Fitur app ini).
+        4. Berikan langkah-langkah masak yang jelas dan ringkas.
+        5. Gaya bicara: Ramah, Profesional, dan menyemangati (Bahasa Indonesia).
+        """
+
+        # 3. Kirim ke Claude
+        response = kolosal_client.chat.completions.create(
+            model="Claude Sonnet 4.5",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            max_tokens=1000
+        )
+        
+        ai_reply = response.choices[0].message.content
+        return {"reply": ai_reply}
+
+    except Exception as e:
+        print(f"Chat Error: {e}")
+        return {"error": "Maaf, Chef sedang sibuk. Coba lagi nanti."}
 
 ==================================================
 FILENAME: .\backend\services\logistics.py
@@ -4081,6 +4173,247 @@ export default function IoTMonitoring() {
 
 
 ==================================================
+FILENAME: .\frontend_next\components\kitchen\kitchen-chatbot.tsx
+==================================================
+"use client"
+
+import { useState, useRef, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Bot, User, Send, Mic, Volume2, StopCircle, Loader2, ChefHat } from "lucide-react"
+
+interface Message {
+  id: number
+  role: "user" | "ai"
+  text: string
+}
+
+export default function KitchenChatbot() {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 1,
+      role: "ai",
+      text: "Halo Chef! 👋 Saya Asisten Dapur AI. Saya tahu semua stok di gudang Anda. Mau masak apa hari ini? Atau butuh saran belanja?"
+    }
+  ])
+  const [input, setInput] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  
+  const scrollRef = useRef<HTMLDivElement>(null)
+  
+  // Suggested Prompts
+  const suggestions = [
+    "Rekomendasi menu dari stok hari ini",
+    "Bahan apa yang mau habis?",
+    "Resep ayam goreng krispi",
+    "Saya butuh ide masakan sayur"
+  ]
+
+  // Auto scroll ke bawah
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [messages])
+
+  // --- FITUR SUARA: Speech to Text ---
+  const startRecording = () => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
+      const recognition = new SpeechRecognition()
+      recognition.lang = 'id-ID' // Bahasa Indonesia
+      recognition.interimResults = false
+      
+      recognition.onstart = () => setIsRecording(true)
+      
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript
+        setInput(transcript)
+      }
+      
+      recognition.onend = () => setIsRecording(false)
+      
+      recognition.start()
+    } else {
+      alert("Browser Anda tidak mendukung fitur suara.")
+    }
+  }
+
+  // --- FITUR SUARA: Text to Speech ---
+  const speakText = (text: string) => {
+    if ('speechSynthesis' in window) {
+      if (isSpeaking) {
+        window.speechSynthesis.cancel()
+        setIsSpeaking(false)
+        return
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = 'id-ID'
+      utterance.rate = 1.0
+      
+      utterance.onstart = () => setIsSpeaking(true)
+      utterance.onend = () => setIsSpeaking(false)
+      
+      window.speechSynthesis.speak(utterance)
+    }
+  }
+
+  const handleSend = async (text: string = input) => {
+    if (!text.trim()) return
+
+    // 1. Tambah pesan user
+    const newUserMsg: Message = { id: Date.now(), role: "user", text }
+    setMessages(prev => [...prev, newUserMsg])
+    setInput("")
+    setLoading(true)
+
+    try {
+      // 2. Kirim ke API
+      const token = localStorage.getItem("token")
+      const res = await fetch("/api/kitchen/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ message: text })
+      })
+      
+      const data = await res.json()
+      
+      // 3. Tambah balasan AI
+      const newAiMsg: Message = { 
+        id: Date.now() + 1, 
+        role: "ai", 
+        text: data.reply || "Maaf, saya sedang mengalami gangguan." 
+      }
+      setMessages(prev => [...prev, newAiMsg])
+      
+    } catch (error) {
+      console.error("Chat error:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Card className="h-[calc(100vh-140px)] flex flex-col border-0 shadow-md">
+      <CardHeader className="bg-gradient-to-r from-primary/10 to-emerald-50 border-b py-4">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Bot className="w-6 h-6 text-primary" />
+          Chef Assistant AI
+        </CardTitle>
+        <CardDescription>Ngobrol dengan AI yang paham stok gudang Anda</CardDescription>
+      </CardHeader>
+
+      {/* Chat Area */}
+      <CardContent className="flex-1 p-0 overflow-hidden relative bg-slate-50/50">
+        <ScrollArea className="h-full p-4" ref={scrollRef}>
+          <div className="space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+              >
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                  msg.role === "user" ? "bg-blue-100" : "bg-emerald-100"
+                }`}>
+                  {msg.role === "user" ? <User className="w-5 h-5 text-blue-600" /> : <ChefHat className="w-5 h-5 text-emerald-600" />}
+                </div>
+                
+                <div className={`rounded-lg p-3 max-w-[80%] text-sm shadow-sm ${
+                  msg.role === "user" 
+                    ? "bg-blue-600 text-white rounded-tr-none" 
+                    : "bg-white border border-gray-100 text-gray-800 rounded-tl-none"
+                }`}>
+                  <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                  
+                  {msg.role === "ai" && (
+                    <button 
+                      onClick={() => speakText(msg.text)}
+                      className="mt-2 flex items-center gap-1 text-xs opacity-70 hover:opacity-100 transition-opacity"
+                    >
+                      {isSpeaking ? <StopCircle className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                      {isSpeaking ? "Stop Bicara" : "Dengarkan"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            
+            {loading && (
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <ChefHat className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div className="bg-white border border-gray-100 rounded-lg p-3 rounded-tl-none">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </CardContent>
+
+      {/* Suggestions */}
+      {messages.length === 1 && (
+        <div className="px-4 py-2 bg-white border-t border-gray-100 overflow-x-auto flex gap-2 whitespace-nowrap">
+          {suggestions.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => handleSend(s)}
+              className="text-xs bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full hover:bg-emerald-100 transition-colors border border-emerald-100"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Input Area */}
+      <CardFooter className="p-3 bg-white border-t">
+        <div className="flex w-full gap-2 items-center">
+          <Button
+            variant="outline"
+            size="icon"
+            className={`shrink-0 rounded-full ${isRecording ? "bg-red-100 text-red-600 border-red-200 animate-pulse" : ""}`}
+            onClick={startRecording}
+          >
+            <Mic className="w-5 h-5" />
+          </Button>
+          
+          <Input 
+            placeholder={isRecording ? "Mendengarkan..." : "Tanya Chef AI (Ketik atau Bicara)..."}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            className="rounded-full bg-slate-50 border-slate-200 focus-visible:ring-emerald-500"
+          />
+          
+          <Button 
+            onClick={() => handleSend()}
+            disabled={!input.trim() || loading}
+            size="icon"
+            className="shrink-0 rounded-full bg-emerald-600 hover:bg-emerald-700"
+          >
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 ml-0.5" />}
+          </Button>
+        </div>
+      </CardFooter>
+    </Card>
+  )
+}
+
+==================================================
 FILENAME: .\frontend_next\components\kitchen\kitchen-dashboard-overview.tsx
 ==================================================
 "use client"
@@ -4254,6 +4587,7 @@ import CookingProduction from "./cooking-production"
 import IoTMonitoring from "./iot-monitoring"
 import ScanFoodQC from "./scan-food-qc"
 import SupplierSearchOrder from "./supplier-search-order"
+import KitchenChatbot from "./kitchen-chatbot"
 
 interface KitchenDashboardProps {
   onLogout: () => void
@@ -4277,6 +4611,7 @@ export default function KitchenDashboard({ onLogout }: KitchenDashboardProps) {
           <div className="px-4 sm:px-6 lg:px-8 py-4">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
               {activeTab === "dashboard" && "Dashboard Overview"}
+              {activeTab === "chat" && <KitchenChatbot />} {/* <-- Tambah ini */}
               {activeTab === "search" && "Cari Supplier & Bahan"}
               {activeTab === "cook" && "Dapur & Produksi"}
               {activeTab === "iot" && "Smart Storage Monitoring"}
@@ -4897,7 +5232,7 @@ FILENAME: .\frontend_next\components\kitchen\kitchen-sidebar.tsx
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Search, ChefHat, Thermometer, Camera, LogOut, Menu, X } from "lucide-react"
+import { LayoutDashboard, Search, ChefHat, Thermometer, Camera, LogOut, Menu, X, MessageSquare } from "lucide-react"
 
 interface KitchenSidebarProps {
   activeTab: string
@@ -4910,6 +5245,7 @@ export default function KitchenSidebar({ activeTab, onTabChange, onLogout }: Kit
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "chat", label: "AI Chef Assistant", icon: MessageSquare }, // <-- Tambah ini
     { id: "search", label: "Cari Supplier", icon: Search },
     { id: "cook", label: "Dapur & Produksi", icon: ChefHat },
     { id: "iot", label: "Smart Storage", icon: Thermometer },
@@ -13860,75 +14196,85 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { AlertCircle, CheckCircle, Clock } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 
 interface Order {
   id: number
-  supply_name: string
+  supply_name?: string
   qty_ordered: number
   buyer_name: string
   status: "pending" | "confirmed" | "completed"
   created_at: string
+  // Data dari join
+  supplies?: {
+      item_name: string
+      unit: string
+  }
 }
 
 export default function OrderList() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const response = await fetch("/api/orders/umkm")
-        const data = await response.json()
-        console.log("[v0] Orders:", data)
-        setOrders(data.orders || [])
-      } catch (error) {
-        console.error("Error fetching orders:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
+  const fetchOrders = async () => {
+    try {
+      // 1. AMBIL TOKEN (PERBAIKAN UTAMA)
+      const token = localStorage.getItem("token")
+      if (!token) return
 
+      // 2. KIRIM HEADER AUTH
+      const response = await fetch("/api/orders/umkm", {
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}` 
+        }
+      })
+      
+      const data = await response.json()
+      console.log("[Vendor] Orders:", data)
+      
+      if (data.orders && Array.isArray(data.orders)) {
+          setOrders(data.orders)
+      } else {
+          setOrders([])
+      }
+    } catch (error) {
+      console.error("Error fetching orders:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchOrders()
   }, [])
 
   const handleUpdateStatus = async (orderId: number, newStatus: string) => {
     try {
+      const token = localStorage.getItem("token")
       const response = await fetch(`/api/orders/${orderId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}` // Jangan lupa token disini juga
+        },
         body: JSON.stringify({ status: newStatus }),
       })
-      const result = await response.json()
-      console.log("[v0] Update result:", result)
-      setOrders(orders.map((o) => (o.id === orderId ? { ...o, status: newStatus as any } : o)))
+      
+      if (response.ok) {
+          fetchOrders()
+      }
     } catch (error) {
       console.error("Error updating order:", error)
     }
   }
 
-  const getStatusIcon = (status: string) => {
+  const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case "confirmed":
-        return <CheckCircle className="w-5 h-5 text-green-500" />
-      case "pending":
-        return <Clock className="w-5 h-5 text-yellow-500" />
-      case "completed":
-        return <CheckCircle className="w-5 h-5 text-blue-500" />
-      default:
-        return <AlertCircle className="w-5 h-5 text-muted-foreground" />
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      case "confirmed":
-        return "bg-blue-100 text-blue-800"
-      case "completed":
-        return "bg-green-100 text-green-800"
-      default:
-        return "bg-muted text-muted-foreground"
+        case "pending": return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-200"
+        case "confirmed": return "bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200"
+        case "completed": return "bg-green-100 text-green-800 hover:bg-green-200 border-green-200"
+        default: return ""
     }
   }
 
@@ -13958,29 +14304,48 @@ export default function OrderList() {
           ) : (
             <div className="space-y-3">
               {orders.map((order) => (
-                <div key={order.id} className="border border-border rounded-lg p-4 space-y-3">
+                <div key={order.id} className="border border-border rounded-lg p-4 space-y-3 bg-white shadow-sm">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        {getStatusIcon(order.status)}
-                        <p className="font-semibold text-foreground">{order.supply_name}</p>
+                        {order.status === "confirmed" ? <CheckCircle className="w-5 h-5 text-green-500" /> : <Clock className="w-5 h-5 text-yellow-500" />}
+                        <p className="font-semibold text-foreground text-lg">
+                            {order.supplies?.item_name || "Item"}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground">Dari: {order.buyer_name}</p>
-                      <p className="text-sm text-muted-foreground">Jumlah: {order.qty_ordered} unit</p>
+                      <p className="text-sm text-muted-foreground">Pembeli: <span className="font-medium text-black">{order.buyer_name}</span></p>
+                      <p className="text-sm text-muted-foreground">Jumlah: <span className="font-medium text-black">{order.qty_ordered} {order.supplies?.unit}</span></p>
                     </div>
-                    <span className={`text-xs px-3 py-1 rounded-full font-semibold ${getStatusBadge(order.status)}`}>
-                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                    </span>
+                    
+                    <Badge variant="outline" className={getStatusBadgeVariant(order.status)}>
+                      {order.status === "pending" ? "Perlu Konfirmasi" : 
+                       order.status === "confirmed" ? "Siap Kirim" : "Selesai"}
+                    </Badge>
                   </div>
 
                   {order.status === "pending" && (
-                    <Button
-                      size="sm"
-                      onClick={() => handleUpdateStatus(order.id, "confirmed")}
-                      className="bg-green-500 text-white hover:bg-green-600"
-                    >
-                      Konfirmasi
-                    </Button>
+                    <div className="flex gap-2 justify-end pt-2 border-t">
+                        <Button
+                        size="sm"
+                        onClick={() => handleUpdateStatus(order.id, "confirmed")}
+                        className="bg-emerald-600 text-white hover:bg-emerald-700"
+                        >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Terima Pesanan
+                        </Button>
+                    </div>
+                  )}
+                  
+                  {order.status === "confirmed" && (
+                    <div className="flex gap-2 justify-end pt-2 border-t">
+                        <Button
+                        size="sm"
+                        onClick={() => handleUpdateStatus(order.id, "completed")}
+                        className="bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                        Tandai Terkirim
+                        </Button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -13991,7 +14356,6 @@ export default function OrderList() {
     </div>
   )
 }
-
 
 ==================================================
 FILENAME: .\frontend_next\components\vendor\quick-insights.tsx
