@@ -6,3 +6,4 @@ requests>=2.31.0
 inference-sdk>=0.9.0      # Buat Roboflow
 openai>=1.0.0             # Buat Colossal (Claude)
 supabase>=1.0.0           # Buat Supabase
+slowapi
