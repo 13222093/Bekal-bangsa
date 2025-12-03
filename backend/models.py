@@ -87,3 +87,7 @@ class IoTLogRequest(BaseModel):
     temperature: float
     humidity: float
     device_id: str = "SENSOR-01"
+
+class ChatRequest(BaseModel):
+    message: str
+    context: Optional[str] = "general" # 'cooking', 'shopping', etc

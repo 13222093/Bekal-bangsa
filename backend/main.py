@@ -18,7 +18,8 @@ from pydantic import BaseModel
 from database import supabase
 from models import (
     SupplyItem, MenuRequest, OrderRequest, OrderStatusUpdate, 
-    CookRequest, IoTLogRequest, UserRegister, UserLogin, Token
+    CookRequest, IoTLogRequest, UserRegister, UserLogin, Token,
+    GoogleLoginRequest, ChatRequest
 )
 
 # --- SECURITY ---
@@ -36,7 +37,7 @@ import os
 
 # --- SERVICES ---
 from services.vision import analyze_market_inventory, analyze_cooked_meal
-from services.kitchen import generate_menu_recommendation, cook_meal
+from services.kitchen import generate_menu_recommendation, cook_meal, chat_with_chef
 from services.logistics import search_suppliers, search_nearest_sppg
 from services.inventory import calculate_expiry_date, check_expiry_and_notify
 from services.storage import upload_image_to_supabase
@@ -230,32 +231,49 @@ async def get_my_supplies(request: Request, current_user: dict = Depends(get_cur
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# backend/main.py
+
 @app.get("/api/orders/umkm")
 async def get_incoming_orders(request: Request, current_user: dict = Depends(get_current_user)):
-    """
-    Vendor melihat pesanan masuk (order yang membeli barang miliknya).
-    """
+    # 1. Cek Role
     if current_user["role"] != "vendor":
         raise HTTPException(status_code=403, detail="Akses ditolak")
 
-    try:
-        # 1. Cari ID semua barang milik vendor ini
-        my_supplies = supabase.table("supplies").select("id").eq("user_id", current_user["user_id"]).execute()
-        my_supply_ids = [s['id'] for s in my_supplies.data]
-        
-        if not my_supply_ids:
-            return {"orders": []}
+    print(f"🔍 Fetching orders for Seller ID: {current_user['user_id']}") # Debug Log di Terminal
 
-        # 2. Cari Order yang supply_id-nya ada di list barang saya
-        # Menggunakan join supplies(*) untuk ambil nama barang
-        orders = supabase.table("orders")\
+    try:
+        # STRATEGI 1: Cari berdasarkan seller_id (Langsung & Cepat)
+        orders_query = supabase.table("orders")\
             .select("*, supplies(item_name, unit)")\
-            .in_("supply_id", my_supply_ids)\
+            .eq("seller_id", current_user["user_id"])\
             .order("created_at", desc=True)\
             .execute()
+        
+        orders_data = orders_query.data
+
+        # STRATEGI 2: Fallback (Jika data lama belum punya seller_id)
+        if not orders_data:
+            print("⚠️ No orders found by seller_id. Trying fallback via supply ownership...")
             
-        return {"orders": orders.data}
+            # A. Cari ID semua barang milik vendor ini
+            my_supplies = supabase.table("supplies").select("id").eq("user_id", current_user["user_id"]).execute()
+            my_supply_ids = [s['id'] for s in my_supplies.data]
+            
+            if my_supply_ids:
+                # B. Cari Order yang supply_id-nya ada di list barang saya
+                fallback_query = supabase.table("orders")\
+                    .select("*, supplies(item_name, unit)")\
+                    .in_("supply_id", my_supply_ids)\
+                    .order("created_at", desc=True)\
+                    .execute()
+                orders_data = fallback_query.data
+
+        print(f"✅ Found {len(orders_data)} orders") # Debug Log
+        return {"orders": orders_data}
+
     except Exception as e:
+        print(f"❌ Error fetching orders: {e}")
+        # Jangan sembunyikan error, kirim ke frontend biar ketahuan
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/orders/{order_id}")
@@ -582,4 +600,24 @@ async def google_login(data: GoogleLoginRequest):
         raise HTTPException(status_code=401, detail="Token Google tidak valid")
     except Exception as e:
         print(f"Google Login Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Tambahkan di BAGIAN 3 (FITUR KITCHEN)
+
+@app.post("/api/kitchen/chat")
+async def chat_chef_endpoint(request: Request, chat_data: ChatRequest, current_user: dict = Depends(get_current_user)):
+    """
+    Endpoint Chatbot AI Chef dengan konteks stok.
+    """
+    if current_user["role"] != "kitchen":
+        raise HTTPException(status_code=403, detail="Akses ditolak")
+        
+    try:
+        # Panggil service
+        # Import fungsi chat_with_chef dulu di bagian atas file main.py!
+        # from services.kitchen import chat_with_chef
+        
+        result = await run_in_threadpool(chat_with_chef, chat_data.message, current_user["user_id"])
+        return result
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

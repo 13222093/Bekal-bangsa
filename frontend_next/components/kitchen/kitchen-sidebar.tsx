@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Search, ChefHat, Thermometer, Camera, LogOut, Menu, X } from "lucide-react"
+import { LayoutDashboard, Search, ChefHat, Thermometer, Camera, LogOut, Menu, X, MessageSquare } from "lucide-react"
 
 interface KitchenSidebarProps {
   activeTab: string
@@ -15,6 +15,7 @@ export default function KitchenSidebar({ activeTab, onTabChange, onLogout }: Kit
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "chat", label: "AI Chef Assistant", icon: MessageSquare }, // <-- Tambah ini
     { id: "search", label: "Cari Supplier", icon: Search },
     { id: "cook", label: "Dapur & Produksi", icon: ChefHat },
     { id: "iot", label: "Smart Storage", icon: Thermometer },

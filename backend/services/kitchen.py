@@ -139,3 +139,50 @@ def mark_meal_as_served(meal_id: int):
     except Exception as e:
         print(f"❌ Gagal update status served: {e}")
         return {"error": str(e)}
+
+# backend/services/kitchen.py
+
+def chat_with_chef(user_message: str, user_id: int):
+    """
+    Chatbot Koki Pintar.
+    Otomatis inject data stok user ke dalam prompt.
+    """
+    try:
+        # 1. Ambil Stok User dari DB
+        response = supabase.table("supplies").select("item_name, quantity, unit").eq("user_id", user_id).execute()
+        supplies = response.data
+        
+        # Format stok jadi string biar Claude ngerti
+        stock_list = "\n".join([f"- {s['item_name']} ({s['quantity']} {s['unit']})" for s in supplies])
+        
+        # 2. System Prompt yang Kuat
+        system_prompt = f"""
+        Kamu adalah "Chef Bekal", asisten dapur AI yang ramah, solutif, dan ahli gizi untuk program Makan Bergizi Gratis.
+        
+        DATA STOK GUDANG USER SAAT INI:
+        {stock_list}
+        
+        TUGAS KAMU:
+        1. Jawab pertanyaan user terkait masakan, resep, atau manajemen dapur.
+        2. Jika user minta resep, PRIORITASKAN bahan yang ada di stok mereka.
+        3. Jika bahan KURANG, sebutkan bahan apa yang kurang dan sarankan untuk membelinya di "Menu Cari Supplier" (Fitur app ini).
+        4. Berikan langkah-langkah masak yang jelas dan ringkas.
+        5. Gaya bicara: Ramah, Profesional, dan menyemangati (Bahasa Indonesia).
+        """
+
+        # 3. Kirim ke Claude
+        response = kolosal_client.chat.completions.create(
+            model="Claude Sonnet 4.5",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            max_tokens=1000
+        )
+        
+        ai_reply = response.choices[0].message.content
+        return {"reply": ai_reply}
+
+    except Exception as e:
+        print(f"Chat Error: {e}")
+        return {"error": "Maaf, Chef sedang sibuk. Coba lagi nanti."}

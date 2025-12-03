@@ -31,6 +31,7 @@ Project Context Scan
             vision.py
             __init__.py
     frontend_next/
+        .env
         components.json
         next.config.mjs
         package.json
@@ -41,6 +42,10 @@ Project Context Scan
             globals.css
             layout.tsx
             page.tsx
+            login/
+                page.tsx
+            register/
+                page.tsx
         components/
             role-selector.tsx
             theme-provider.tsx
@@ -707,30 +712,27 @@ async def get_my_supplies(request: Request, current_user: dict = Depends(get_cur
 
 @app.get("/api/orders/umkm")
 async def get_incoming_orders(request: Request, current_user: dict = Depends(get_current_user)):
-    """
-    Vendor melihat pesanan masuk (order yang membeli barang miliknya).
-    """
+    # 1. Cek Role
     if current_user["role"] != "vendor":
         raise HTTPException(status_code=403, detail="Akses ditolak")
 
-    try:
-        # 1. Cari ID semua barang milik vendor ini
-        my_supplies = supabase.table("supplies").select("id").eq("user_id", current_user["user_id"]).execute()
-        my_supply_ids = [s['id'] for s in my_supplies.data]
-        
-        if not my_supply_ids:
-            return {"orders": []}
+    print(f"🔍 Fetching orders for Seller ID: {current_user['user_id']}") # Debug Log
 
-        # 2. Cari Order yang supply_id-nya ada di list barang saya
-        # Menggunakan join supplies(*) untuk ambil nama barang
+    try:
+        # 2. Query Utama: Ambil order berdasarkan seller_id
+        # Kita join dengan supplies untuk dapat nama barang
         orders = supabase.table("orders")\
             .select("*, supplies(item_name, unit)")\
-            .in_("supply_id", my_supply_ids)\
+            .eq("seller_id", current_user["user_id"])\
             .order("created_at", desc=True)\
             .execute()
             
+        print(f"✅ Found {len(orders.data)} orders") # Debug Log
         return {"orders": orders.data}
+
     except Exception as e:
+        print(f"❌ Error fetching orders: {e}")
+        # Jangan sembunyikan error, kirim ke frontend biar ketahuan
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/orders/{order_id}")
@@ -944,11 +946,17 @@ async def kitchen_analytics_endpoint(request: Request):
     return result
 
 @app.get("/api/analytics/vendor")
-async def vendor_analytics_endpoint(request: Request):
-    result = get_vendor_analytics()
-    if "error" in result: raise HTTPException(status_code=500, detail=result["error"])
-    return result
+async def vendor_analytics_endpoint(request: Request, current_user: dict = Depends(get_current_user)):
+    # Pastikan user adalah vendor
+    if current_user["role"] != "vendor":
+        raise HTTPException(status_code=403, detail="Akses ditolak")
 
+    # Kirim user_id ke fungsi analytics
+    result = get_vendor_analytics(current_user["user_id"])
+    
+    if "error" in result: 
+        raise HTTPException(status_code=500, detail=result["error"])
+    return result
 # ==========================================
 # 📡 BAGIAN 6: IOT & NOTIFIKASI
 # ==========================================
@@ -1382,7 +1390,7 @@ def get_kitchen_analytics():
     3. Metrics: Total Items, Total Qty, Warning Count
     """
     try:
-        # Fetch all supplies
+        # Fetch all supplies (Kitchen sees global stock in market)
         response = supabase.table("supplies").select("*").execute()
         items = response.data
         
@@ -1457,16 +1465,18 @@ def get_kitchen_analytics():
         print(f"Error getting kitchen analytics: {e}")
         return {"error": str(e)}
 
-def get_vendor_analytics():
+def get_vendor_analytics(user_id: int):
     """
     Aggregates data for Vendor Dashboard.
+    FILTERED BY USER ID (Private Data).
     1. Inventory Health: Count Fresh/Warning/Expired
     2. Expiry Risk: Pie Chart
     3. Top Sales: Bar Chart (from Orders)
     """
     try:
-        # --- Inventory Health & Expiry Risk ---
-        response = supabase.table("supplies").select("*").execute()
+        # --- Inventory Health & Expiry Risk (FILTERED) ---
+        # Hanya ambil barang milik user yang sedang login
+        response = supabase.table("supplies").select("*").eq("user_id", user_id).execute()
         items = response.data
         
         fresh = 0
@@ -1494,9 +1504,9 @@ def get_vendor_analytics():
             {"name": "Kadaluwarsa", "value": expired, "fill": "#EF4444"}
         ]
 
-        # --- Top Sales ---
-        # Fetch orders
-        orders_resp = supabase.table("orders").select("*, supplies(item_name)").execute()
+        # --- Top Sales (FILTERED) ---
+        # Fetch orders where seller_id matches user_id
+        orders_resp = supabase.table("orders").select("*, supplies(item_name)").eq("seller_id", user_id).execute()
         orders = orders_resp.data
         
         sales_map = defaultdict(int)
@@ -1527,7 +1537,6 @@ def get_vendor_analytics():
     except Exception as e:
         print(f"Error getting vendor analytics: {e}")
         return {"error": str(e)}
-
 
 ==================================================
 FILENAME: .\backend\services\clients.py
@@ -2401,32 +2410,559 @@ FILENAME: .\frontend_next\app\page.tsx
 ==================================================
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import RoleSelector from "@/components/role-selector"
 import VendorDashboard from "@/components/vendor/vendor-dashboard"
 import KitchenDashboard from "@/components/kitchen/kitchen-dashboard"
 import ErrorBoundary from "@/components/shared/error-boundary"
+import { Loader2 } from "lucide-react"
 
 export default function Home() {
+  const router = useRouter()
+  // State untuk menyimpan role user (vendor/kitchen)
   const [userRole, setUserRole] = useState<"vendor" | "kitchen" | null>(null)
+  // State loading agar tidak "flash" tampilan landing page saat sedang mengecek token
+  const [isLoading, setIsLoading] = useState(true)
 
-  if (!userRole) {
-    return <RoleSelector onSelectRole={setUserRole} />
+  // --- LOGIC PENGECEKAN LOGIN ---
+  useEffect(() => {
+    const checkAuth = () => {
+      try {
+        // 1. Cek apakah ada token & data user di LocalStorage
+        const token = localStorage.getItem("token")
+        const userStr = localStorage.getItem("user")
+        
+        if (token && userStr) {
+          const user = JSON.parse(userStr)
+          
+          // 2. Jika ada, set Role sesuai data user (otomatis masuk dashboard)
+          if (user.role === "vendor" || user.role === "kitchen") {
+            setUserRole(user.role)
+          } else {
+            // Role tidak valid/tidak dikenal
+            setUserRole(null)
+          }
+        } else {
+          // 3. Jika tidak ada token, biarkan user di Landing Page
+          setUserRole(null)
+        }
+      } catch (e) {
+        console.error("Gagal membaca data login:", e)
+        // Jika data korup, bersihkan sekalian biar user login ulang
+        localStorage.removeItem("token")
+        localStorage.removeItem("user")
+        setUserRole(null)
+      } finally {
+        setIsLoading(false) // Proses pengecekan selesai
+      }
+    }
+
+    checkAuth()
+  }, [])
+
+  // --- LOGIC LOGOUT ---
+  const handleLogout = () => {
+    // Hapus data dari browser
+    localStorage.removeItem("token")
+    localStorage.removeItem("user")
+    
+    // Reset state agar tampilan kembali ke RoleSelector
+    setUserRole(null)
+    router.refresh()
+  }
+
+  // Tampilkan Loading Spinner saat aplikasi baru dibuka (sedang cek token)
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-emerald-50">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-10 h-10 animate-spin text-emerald-600" />
+          <p className="text-emerald-700 font-medium">Memuat aplikasi...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <ErrorBoundary>
       <main className="min-h-screen bg-background">
+        {/* LOGIKA SWITCHING TAMPILAN BERDASARKAN ROLE */}
+        
         {userRole === "vendor" ? (
-          <VendorDashboard onLogout={() => setUserRole(null)} />
+          // Jika Vendor Login -> Tampilkan Dashboard Vendor
+          <VendorDashboard onLogout={handleLogout} />
+        ) : userRole === "kitchen" ? (
+          // Jika Kitchen Login -> Tampilkan Dashboard Kitchen
+          <KitchenDashboard onLogout={handleLogout} />
         ) : (
-          <KitchenDashboard onLogout={() => setUserRole(null)} />
+          // Jika Belum Login -> Tampilkan Landing Page (Pilih Role)
+          <RoleSelector /> 
         )}
       </main>
     </ErrorBoundary>
   )
 }
 
+==================================================
+FILENAME: .\frontend_next\app\login\page.tsx
+==================================================
+"use client"
+
+import { useState, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Leaf, Loader2 } from "lucide-react"
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google"
+
+// --- KOMPONEN FORM LOGIN ---
+function LoginForm() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Ambil parameter role dari URL (misal: /login?role=kitchen)
+  // Default ke 'vendor' jika tidak ada
+  const roleParam = searchParams.get("role") || "vendor" 
+
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({ username_or_email: "", password: "" })
+
+  // Ambil Client ID dari .env
+  const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
+
+  // --- Logic Simpan Token & Redirect ---
+  const handleAuthSuccess = (data: any) => {
+    // 1. Simpan Token JWT & Data User ke LocalStorage
+    localStorage.setItem("token", data.access_token)
+    localStorage.setItem("user", JSON.stringify(data.user))
+    
+    // 2. Redirect ke Halaman Utama (/)
+    // Nanti page.tsx di root yang akan mendeteksi role dan menampilkan dashboard yang sesuai
+    router.push("/")
+    router.refresh() // Refresh agar state auth di page.tsx diperbarui
+  }
+
+  // --- Handler Login Manual (Username/Password) ---
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      const res = await fetch("http://localhost:8000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.detail || "Gagal login")
+      }
+      
+      handleAuthSuccess(data)
+
+    } catch (error: any) {
+      alert(error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // --- Handler Login Google ---
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setLoading(true)
+    try {
+      // Kirim token Google + Role yang dipilih ke Backend
+      const res = await fetch("http://localhost:8000/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            token: credentialResponse.credential,
+            role: roleParam // Penting: Register sesuai role di URL
+        }),
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.detail || "Gagal login dengan Google")
+      }
+      
+      handleAuthSuccess(data)
+
+    } catch (error: any) {
+      console.error("Google Login Error:", error)
+      alert("Gagal login dengan Google: " + error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <GoogleOAuthProvider clientId={CLIENT_ID}>
+      <Card className="w-full max-w-md shadow-xl border-emerald-100 bg-white">
+        <CardHeader className="text-center space-y-2">
+          <div className="flex justify-center mb-2">
+            <div className="bg-emerald-100 p-3 rounded-full">
+              <Leaf className="w-8 h-8 text-emerald-600" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl font-bold text-emerald-900">
+            Masuk Sebagai {roleParam === 'vendor' ? 'UMKM Vendor' : 'Kitchen Admin'}
+          </CardTitle>
+          <CardDescription>
+            Kelola pangan lokal untuk masa depan
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          {/* Form Login Manual */}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Email atau Username</label>
+              <Input 
+                placeholder="cth: warung_bu_susi" 
+                value={formData.username_or_email}
+                onChange={(e) => setFormData({...formData, username_or_email: e.target.value})}
+                required
+                className="bg-gray-50"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Password</label>
+              <Input 
+                type="password" 
+                placeholder="******" 
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                required
+                className="bg-gray-50"
+              />
+            </div>
+            <Button 
+              type="submit" 
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-5" 
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="animate-spin w-5 h-5" /> : "Masuk Sekarang"}
+            </Button>
+          </form>
+          
+          {/* Divider & Google Button */}
+          <div className="mt-6">
+            <div className="relative mb-6">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-gray-200" /></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-gray-500">Atau masuk dengan</span></div>
+            </div>
+            
+            <div className="flex justify-center w-full">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => console.log('Login Failed')}
+                  theme="outline"
+                  size="large"
+                  text="signin_with"
+                  width="100%"
+                  locale="id"
+                />
+            </div>
+          </div>
+        </CardContent>
+        
+        <CardFooter className="justify-center flex-col gap-4 pb-8">
+          <p className="text-sm text-gray-600">
+            Belum punya akun? <Link href={`/register?role=${roleParam}`} className="text-emerald-600 font-bold hover:underline">Daftar di sini</Link>
+          </p>
+          <Link href="/" className="text-xs text-gray-400 hover:text-gray-600 hover:underline">
+            ← Kembali ke Halaman Depan
+          </Link>
+        </CardFooter>
+      </Card>
+    </GoogleOAuthProvider>
+  )
+}
+
+// --- MAIN PAGE COMPONENT (DENGAN SUSPENSE) ---
+// Suspense wajib digunakan saat memanggil useSearchParams di App Router
+export default function LoginPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-green-100 p-4">
+      <Suspense fallback={
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+          <p className="text-emerald-700 font-medium">Memuat halaman login...</p>
+        </div>
+      }>
+        <LoginForm />
+      </Suspense>
+    </div>
+  )
+}
+
+==================================================
+FILENAME: .\frontend_next\app\register\page.tsx
+==================================================
+"use client"
+
+import { useState, Suspense, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Leaf, Loader2 } from "lucide-react"
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google"
+
+// --- KOMPONEN FORM REGISTER ---
+function RegisterForm() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Ambil role dari URL, default 'vendor'
+  const roleParam = searchParams.get("role") || "vendor"
+
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    full_name: "",
+    username: "",
+    email: "",
+    password: "",
+    role: roleParam, // Set awal sesuai URL
+    address: "",
+    phone_number: ""
+  })
+
+  // Update formData jika URL berubah
+  useEffect(() => {
+    setFormData(prev => ({ ...prev, role: roleParam }))
+  }, [roleParam])
+
+  const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
+
+  // --- Fungsi Shared: Simpan Token & Redirect ---
+  const handleAuthSuccess = (data: any) => {
+    localStorage.setItem("token", data.access_token)
+    localStorage.setItem("user", JSON.stringify(data.user))
+    
+    // Redirect ke Root, nanti page.tsx yang arahkan ke Dashboard
+    router.push("/")
+    router.refresh()
+  }
+
+  // --- Handler Register Manual ---
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      const res = await fetch("http://localhost:8000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.detail || "Gagal mendaftar")
+      }
+
+      handleAuthSuccess(data)
+
+    } catch (error: any) {
+      alert(error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // --- Handler Google Register ---
+  // (Sama dengan login, backend akan auto-register jika user baru)
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setLoading(true)
+    try {
+      const res = await fetch("http://localhost:8000/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            token: credentialResponse.credential,
+            role: formData.role // PENTING: Kirim role yang sedang dipilih di form
+        }),
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.detail || "Gagal daftar dengan Google")
+      }
+      
+      handleAuthSuccess(data)
+
+    } catch (error: any) {
+      console.error("Google Register Error:", error)
+      alert("Gagal daftar dengan Google: " + error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <GoogleOAuthProvider clientId={CLIENT_ID}>
+      <Card className="w-full max-w-lg shadow-xl border-emerald-100 bg-white">
+        <CardHeader className="text-center space-y-2">
+          <div className="flex justify-center mb-2">
+            <div className="bg-emerald-100 p-3 rounded-full">
+              <Leaf className="w-8 h-8 text-emerald-600" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl font-bold text-emerald-900">
+            Daftar Akun Baru
+          </CardTitle>
+          <CardDescription>
+            Bergabung dengan ekosistem Bekal Bangsa
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Nama Lengkap</label>
+                <Input 
+                  required 
+                  placeholder="Contoh: Budi Santoso"
+                  value={formData.full_name}
+                  onChange={(e) => setFormData({...formData, full_name: e.target.value})} 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Username</label>
+                <Input 
+                  required 
+                  placeholder="user_budi"
+                  value={formData.username}
+                  onChange={(e) => setFormData({...formData, username: e.target.value})} 
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email</label>
+              <Input 
+                type="email" 
+                required 
+                placeholder="budi@example.com"
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})} 
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Password</label>
+                <Input 
+                  type="password" 
+                  required 
+                  placeholder="******"
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})} 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">No. Telepon</label>
+                <Input 
+                  placeholder="0812..."
+                  value={formData.phone_number}
+                  onChange={(e) => setFormData({...formData, phone_number: e.target.value})} 
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Daftar Sebagai</label>
+              <Select 
+                value={formData.role} 
+                onValueChange={(val) => setFormData({...formData, role: val})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Peran" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="vendor">UMKM / Pedagang (Vendor)</SelectItem>
+                  <SelectItem value="kitchen">Admin Dapur / SPPG</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.role === "vendor" && (
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Alamat Pasar / Lokasi</label>
+                    <Input 
+                      placeholder="Pasar Tanah Abang Blok A..." 
+                      value={formData.address}
+                      onChange={(e) => setFormData({...formData, address: e.target.value})} 
+                    />
+                </div>
+            )}
+
+            <Button 
+              type="submit" 
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold mt-2" 
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="animate-spin w-5 h-5" /> : "Daftar Sekarang"}
+            </Button>
+          </form>
+
+          {/* Google Sign Up */}
+          <div className="mt-6">
+            <div className="relative mb-6">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-gray-200" /></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-gray-500">Atau daftar cepat</span></div>
+            </div>
+            
+            <div className="flex justify-center w-full">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => console.log('Register Failed')}
+                  text="signup_with"
+                  width="100%"
+                  locale="id"
+                />
+            </div>
+          </div>
+
+        </CardContent>
+        <CardFooter className="justify-center">
+          <p className="text-sm text-gray-600">
+            Sudah punya akun? <Link href={`/login?role=${formData.role}`} className="text-emerald-600 font-bold hover:underline">Masuk</Link>
+          </p>
+        </CardFooter>
+      </Card>
+    </GoogleOAuthProvider>
+  )
+}
+
+// --- MAIN PAGE WRAPPER ---
+export default function RegisterPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-green-100 p-4">
+      <Suspense fallback={
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+          <p className="text-emerald-700 font-medium">Memuat form pendaftaran...</p>
+        </div>
+      }>
+        <RegisterForm />
+      </Suspense>
+    </div>
+  )
+}
 
 ==================================================
 FILENAME: .\frontend_next\components\role-selector.tsx
@@ -2436,12 +2972,17 @@ FILENAME: .\frontend_next\components\role-selector.tsx
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ShoppingCart, UtensilsCrossed, Leaf } from "lucide-react"
+import { useRouter } from "next/navigation"
 
-interface RoleSelectorProps {
-  onSelectRole: (role: "vendor" | "kitchen") => void
-}
+export default function RoleSelector() {
+  const router = useRouter()
 
-export default function RoleSelector({ onSelectRole }: RoleSelectorProps) {
+  const handleSelectRole = (role: "vendor" | "kitchen") => {
+    // Redirect ke halaman Login dengan query param role
+    // Halaman login nanti akan membaca param ini untuk menyesuaikan judul & form
+    router.push(`/login?role=${role}`)
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-emerald-600 to-primary p-4">
       <div className="w-full max-w-6xl space-y-8">
@@ -2456,12 +2997,13 @@ export default function RoleSelector({ onSelectRole }: RoleSelectorProps) {
           <p className="text-emerald-100 text-sm md:text-base">Platform Cerdas untuk Ekosistem Pangan Lokal</p>
         </div>
 
-        {/* Role Selection */}
+        {/* Role Selection Cards */}
         <div className="grid md:grid-cols-2 gap-8 md:gap-6">
+          
           {/* Vendor Card */}
           <Card
-            className="border-0 shadow-xl hover:shadow-2xl transition-all cursor-pointer group overflow-hidden"
-            onClick={() => onSelectRole("vendor")}
+            className="border-0 shadow-xl hover:shadow-2xl transition-all cursor-pointer group overflow-hidden relative"
+            onClick={() => handleSelectRole("vendor")}
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-secondary to-amber-400"></div>
             <CardHeader className="text-center pb-4">
@@ -2500,8 +3042,8 @@ export default function RoleSelector({ onSelectRole }: RoleSelectorProps) {
 
           {/* Kitchen Card */}
           <Card
-            className="border-0 shadow-xl hover:shadow-2xl transition-all cursor-pointer group overflow-hidden"
-            onClick={() => onSelectRole("kitchen")}
+            className="border-0 shadow-xl hover:shadow-2xl transition-all cursor-pointer group overflow-hidden relative"
+            onClick={() => handleSelectRole("kitchen")}
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-emerald-400"></div>
             <CardHeader className="text-center pb-4">
@@ -2547,7 +3089,6 @@ export default function RoleSelector({ onSelectRole }: RoleSelectorProps) {
     </div>
   )
 }
-
 
 ==================================================
 FILENAME: .\frontend_next\components\theme-provider.tsx
@@ -4183,18 +4724,19 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertCircle, CheckCircle, Clock, ShoppingBag } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 
 interface Order {
     id: number
-    supply_name: string
+    supply_name?: string
     qty_ordered: number
     buyer_name: string
     status: "pending" | "confirmed" | "completed"
     created_at: string
+    // Data dari join tabel supplies
     supplies?: {
         item_name: string
         unit: string
-        price_per_unit: number
     }
 }
 
@@ -4205,12 +4747,33 @@ export default function KitchenOrderHistory() {
     useEffect(() => {
         const fetchOrders = async () => {
             try {
-                // Reusing the UMKM endpoint as it returns all orders with supply details
-                const response = await fetch("/api/orders/umkm")
+                // 1. Ambil Token Auth
+                const token = localStorage.getItem("token")
+                if (!token) {
+                    console.error("Token tidak ditemukan")
+                    return
+                }
+
+                // 2. Panggil Endpoint Khusus Kitchen
+                const response = await fetch("/api/orders/kitchen", {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    }
+                })
+
                 const data = await response.json()
-                // Filter for orders where buyer is SPPG (or just show all for demo)
-                // For this demo, we assume all orders are relevant
-                setOrders(data.orders || data || [])
+                
+                // 3. Safety Check: Pastikan data.orders adalah Array
+                if (data.orders && Array.isArray(data.orders)) {
+                    setOrders(data.orders)
+                } else if (Array.isArray(data)) {
+                    setOrders(data)
+                } else {
+                    console.warn("Format data tidak sesuai:", data)
+                    setOrders([]) 
+                }
+
             } catch (error) {
                 console.error("Error fetching orders:", error)
             } finally {
@@ -4224,26 +4787,32 @@ export default function KitchenOrderHistory() {
     const getStatusIcon = (status: string) => {
         switch (status) {
             case "confirmed":
-                return <CheckCircle className="w-5 h-5 text-green-500" />
+                return <CheckCircle className="w-5 h-5 text-blue-500" />
             case "pending":
                 return <Clock className="w-5 h-5 text-yellow-500" />
             case "completed":
-                return <CheckCircle className="w-5 h-5 text-blue-500" />
+                return <CheckCircle className="w-5 h-5 text-green-500" />
             default:
                 return <AlertCircle className="w-5 h-5 text-muted-foreground" />
         }
     }
 
-    const getStatusBadge = (status: string) => {
+    const getStatusBadgeVariant = (status: string) => {
         switch (status) {
-            case "pending":
-                return "bg-yellow-100 text-yellow-800"
-            case "confirmed":
-                return "bg-blue-100 text-blue-800"
-            case "completed":
-                return "bg-green-100 text-green-800"
-            default:
-                return "bg-muted text-muted-foreground"
+            case "pending": return "secondary" // Yellow-ish usually handled by CSS or custom variant
+            case "confirmed": return "default" // Blue/Primary
+            case "completed": return "outline" // Green/Success usually
+            default: return "outline"
+        }
+    }
+    
+    // Helper untuk styling manual badge warna-warni
+    const getBadgeClassName = (status: string) => {
+        switch (status) {
+            case "pending": return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-200"
+            case "confirmed": return "bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200"
+            case "completed": return "bg-green-100 text-green-800 hover:bg-green-200 border-green-200"
+            default: return ""
         }
     }
 
@@ -4253,12 +4822,12 @@ export default function KitchenOrderHistory() {
                 <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 py-6">
                     <CardTitle className="flex items-center gap-2 text-purple-800">
                         <ShoppingBag className="w-5 h-5" />
-                        Riwayat Transaksi
+                        Riwayat Belanja
                     </CardTitle>
-                    <CardDescription>Memuat riwayat...</CardDescription>
+                    <CardDescription>Memuat data...</CardDescription>
                 </CardHeader>
-                <CardContent className="pt-6 pb-6">
-                    <p className="text-center text-muted-foreground">Memuat data...</p>
+                <CardContent className="pt-6 pb-6 text-center text-muted-foreground">
+                    Memuat riwayat transaksi...
                 </CardContent>
             </Card>
         )
@@ -4269,7 +4838,7 @@ export default function KitchenOrderHistory() {
             <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-purple-100 py-6">
                 <CardTitle className="flex items-center gap-2 text-purple-800">
                     <ShoppingBag className="w-5 h-5" />
-                    Riwayat Transaksi
+                    Riwayat Belanja
                 </CardTitle>
                 <CardDescription className="text-purple-600">
                     Status pesanan bahan baku ke UMKM
@@ -4279,7 +4848,9 @@ export default function KitchenOrderHistory() {
                 {orders.length === 0 ? (
                     <Alert className="bg-purple-50 border-purple-200">
                         <AlertCircle className="h-4 w-4 text-purple-600" />
-                        <AlertDescription className="text-purple-800">Belum ada riwayat transaksi</AlertDescription>
+                        <AlertDescription className="text-purple-800">
+                            Belum ada riwayat transaksi. Mulai belanja di menu "Cari Supplier".
+                        </AlertDescription>
                     </Alert>
                 ) : (
                     <div className="space-y-3">
@@ -4290,21 +4861,25 @@ export default function KitchenOrderHistory() {
                                         <div className="flex items-center gap-2 mb-2">
                                             {getStatusIcon(order.status)}
                                             <p className="font-semibold text-foreground">
+                                                {/* Prioritaskan nama dari tabel supplies, fallback ke nama manual */}
                                                 {order.supplies?.item_name || order.supply_name || "Item Tidak Diketahui"}
                                             </p>
                                         </div>
                                         <div className="text-sm text-muted-foreground space-y-1">
-                                            <p>Jumlah: {order.qty_ordered} {order.supplies?.unit || "unit"}</p>
-                                            <p className="text-xs">Dipesan pada: {new Date(order.created_at).toLocaleDateString("id-ID", {
-                                                day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                                            })}</p>
+                                            <p>Jumlah: {order.qty_ordered} {order.supplies?.unit || "Unit"}</p>
+                                            <p className="text-xs">
+                                                Dipesan pada: {new Date(order.created_at).toLocaleDateString("id-ID", {
+                                                    day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                                                })}
+                                            </p>
                                         </div>
                                     </div>
-                                    <span className={`text-xs px-3 py-1 rounded-full font-semibold ${getStatusBadge(order.status)}`}>
+                                    
+                                    <Badge variant="outline" className={getBadgeClassName(order.status)}>
                                         {order.status === "pending" ? "Menunggu Konfirmasi" :
-                                            order.status === "confirmed" ? "Dikonfirmasi" :
-                                                order.status === "completed" ? "Selesai" : order.status}
-                                    </span>
+                                         order.status === "confirmed" ? "Sedang Diantar" :
+                                         order.status === "completed" ? "Selesai" : order.status}
+                                    </Badge>
                                 </div>
                             </div>
                         ))}
@@ -4314,7 +4889,6 @@ export default function KitchenOrderHistory() {
         </Card>
     )
 }
-
 
 ==================================================
 FILENAME: .\frontend_next\components\kitchen\kitchen-sidebar.tsx
@@ -13708,20 +14282,46 @@ export default function VendorDashboard({ onLogout }: VendorDashboardProps) {
   const [activeTab, setActiveTab] = useState<"dashboard" | "upload" | "orders" | "sppg" | "history" | "settings">("dashboard")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [analytics, setAnalytics] = useState<any>(null)
+  
+  // State untuk menyimpan data user yang sedang login
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
+    // 1. Ambil Data User dari LocalStorage
+    const userData = localStorage.getItem("user")
+    const token = localStorage.getItem("token")
+
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData))
+      } catch (e) {
+        console.error("Gagal parsing data user:", e)
+      }
+    }
+
+    // 2. Fetch Analytics (Dengan Token)
     const fetchAnalytics = async () => {
       try {
-        const response = await fetch("/api/analytics/vendor")
-        const data = await response.json()
-        setAnalytics(data)
+        const headers: Record<string, string> = { "Content-Type": "application/json" }
+        if (token) headers["Authorization"] = `Bearer ${token}`
+
+        const response = await fetch("/api/analytics/vendor", { headers })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setAnalytics(data)
+        } else {
+          console.error("Gagal mengambil data analytics vendor")
+        }
       } catch (error) {
         console.error("Error fetching vendor analytics:", error)
       }
     }
+    
     fetchAnalytics()
   }, [])
 
+  // Fungsi untuk merender konten berdasarkan tab yang aktif
   const renderContent = () => {
     switch (activeTab) {
       case "upload":
@@ -13743,11 +14343,19 @@ export default function VendorDashboard({ onLogout }: VendorDashboardProps) {
           </div>
         )
       case "dashboard":
+      default:
         return (
           <div className="space-y-6 animate-in fade-in duration-500">
-            <ConnectionStatus />
+            {/* Widget Status Koneksi & Lokasi */}
+            <ConnectionStatus location={user?.address || "Lokasi Belum Diatur"} />
+            
+            {/* Statistik Ringkas */}
             <InventoryHealth data={analytics?.inventory_health} />
+            
+            {/* Grafik Analisis */}
             <QuickInsights data={analytics} />
+            
+            {/* Tabel Inventaris (List Produk) */}
             <InventoryList role="vendor" />
           </div>
         )
@@ -13756,9 +14364,15 @@ export default function VendorDashboard({ onLogout }: VendorDashboardProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <VendorNavbar vendorName="Pak Asep" onLogout={onLogout} onMenuToggle={setSidebarOpen} />
+      {/* NAVBAR: Kirim nama user asli ke komponen navbar */}
+      <VendorNavbar 
+        vendorName={user?.full_name || "Mitra Vendor"} 
+        onLogout={onLogout} 
+        onMenuToggle={setSidebarOpen} 
+      />
 
       <div className="flex">
+        {/* SIDEBAR: Menu navigasi kiri */}
         <VendorSidebar
           activeTab={activeTab}
           onTabChange={setActiveTab as any}
@@ -13766,15 +14380,16 @@ export default function VendorDashboard({ onLogout }: VendorDashboardProps) {
           onClose={() => setSidebarOpen(false)}
         />
 
-        {/* Main Content */}
+        {/* MAIN CONTENT: Area isi utama */}
         <main className="flex-1 bg-gray-50/50 min-h-[calc(100vh-64px)]">
-          <div className="w-full px-6 py-8">{renderContent()}</div>
+          <div className="w-full px-4 sm:px-6 py-8">
+            {renderContent()}
+          </div>
         </main>
       </div>
     </div>
   )
 }
-
 
 ==================================================
 FILENAME: .\frontend_next\components\vendor\vendor-inventory-overview.tsx
@@ -14350,6 +14965,8 @@ export { useToast, toast }
 ==================================================
 FILENAME: .\frontend_next\lib\api.ts
 ==================================================
+// frontend_next/lib/api.ts
+
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api"
 
 export interface ApiResponse<T = any> {
@@ -14359,24 +14976,63 @@ export interface ApiResponse<T = any> {
   message?: string
 }
 
+/**
+ * Wrapper standar untuk fetch API dengan otomatisasi Token Auth.
+ */
 export async function apiCall<T = any>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
   try {
     const url = `${API_BASE}${endpoint}`
+
+    // 1. Siapkan Header Standar (JSON)
+    // Kita deklarasikan sebagai Record<string, string> agar TypeScript tidak rewel saat nambah field baru
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
+
+    // 2. Cek apakah ada Token Login di browser?
+    // (Hanya jalan di sisi client, bukan server-side rendering awal)
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("token")
+      if (token) {
+        // Tempelkan tiket masuk ke header
+        headers["Authorization"] = `Bearer ${token}`
+      }
+    }
+
+    // 3. Gabungkan dengan header tambahan jika ada dari parameter options
+    if (options?.headers) {
+      Object.assign(headers, options.headers)
+    }
+
+    // 4. Kirim Request ke Backend
     const response = await fetch(url, {
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
       ...options,
+      headers: headers, // Header yang sudah lengkap (JSON + Token)
     })
+
+    // 5. Cek jika Response Kosong (Misal 204 No Content)
+    if (response.status === 204) {
+      return { success: true }
+    }
 
     const data = await response.json()
 
+    // 6. Handle Error dari Backend
     if (!response.ok) {
-      console.error(`[v0] API Error (${response.status}):`, data)
+      console.error(`[API] Error (${response.status}):`, data)
+
+      // KHUSUS: Jika Error 401 (Unauthorized/Token Expired)
+      if (response.status === 401 && typeof window !== "undefined") {
+        console.warn("Sesi habis, logout otomatis...")
+        localStorage.removeItem("token")
+        localStorage.removeItem("user")
+        // Redirect paksa ke halaman login (Opsional)
+        // window.location.href = "/login" 
+      }
+
       return {
         success: false,
-        error: data.error || data.message || "API call failed",
+        error: data.detail || data.message || data.error || "Terjadi kesalahan pada server",
       }
     }
 
@@ -14385,61 +15041,96 @@ export async function apiCall<T = any>(endpoint: string, options?: RequestInit):
       data,
     }
   } catch (error) {
-    console.error("[v0] API Error:", error)
+    console.error("[API] Network Error:", error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error ? error.message : "Gagal terhubung ke server",
     }
   }
 }
 
-// Specific API calls
+// --- KUMPULAN FUNGSI API SPESIFIK ---
+
 export const API = {
-  // Upload & Analyze
+  // 1. Upload & Vision AI (Butuh penanganan khusus karena Multipart Form Data)
   uploadImage: (file: File) => {
     const formData = new FormData()
     formData.append("file", file)
-    return fetch(`${API_BASE}/upload`, { method: "POST", body: formData })
+    
+    // Ambil token manual karena kita tidak pakai apiCall (agar Content-Type dihandle otomatis oleh browser)
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    const headers: Record<string, string> = {}
+    if (token) headers["Authorization"] = `Bearer ${token}`
+
+    return fetch(`${API_BASE}/upload`, { 
+        method: "POST", 
+        body: formData,
+        headers 
+    })
   },
 
   analyzeImage: (file: File) => {
     const formData = new FormData()
     formData.append("file", file)
-    return fetch(`${API_BASE}/analyze`, { method: "POST", body: formData })
+    
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    const headers: Record<string, string> = {}
+    if (token) headers["Authorization"] = `Bearer ${token}`
+
+    return fetch(`${API_BASE}/analyze`, { 
+        method: "POST", 
+        body: formData,
+        headers
+    })
   },
 
-  // Supplies
-  saveSupplies: (items: any[]) => apiCall("/supplies", { method: "POST", body: JSON.stringify(items) }),
+  // 2. Supply (Stok Gudang)
+  saveSupplies: (items: any[]) => apiCall("/supplies", { 
+      method: "POST", 
+      body: JSON.stringify(items) 
+  }),
 
   getSupplies: () => apiCall("/supplies"),
 
+  // Pencarian Supplier (Public/Protected)
   searchSuppliers: (query: string, lat?: number, long?: number) =>
     apiCall(`/suppliers/search?q=${query}${lat ? `&lat=${lat}` : ""}${long ? `&long=${long}` : ""}`),
 
-  // Menu
+  // 3. Menu & AI Chef
   getMenuRecommendations: (ingredients: string[]) =>
-    apiCall("/recommend-menu", { method: "POST", body: JSON.stringify({ ingredients }) }),
+    apiCall("/recommend-menu", { 
+        method: "POST", 
+        body: JSON.stringify({ ingredients }) 
+    }),
 
-  // Orders
-  getVendorOrders: () => apiCall("/orders/umkm"),
+  // 4. Orders (Transaksi)
+  getVendorOrders: () => apiCall("/orders/umkm"), // Khusus Vendor
+
+  getKitchenOrders: () => apiCall("/orders/kitchen"), // Khusus Kitchen
 
   updateOrder: (orderId: number, status: string) =>
-    apiCall(`/orders/${orderId}`, { method: "PUT", body: JSON.stringify({ status }) }),
+    apiCall(`/orders/${orderId}`, { 
+        method: "PUT", 
+        body: JSON.stringify({ status }) 
+    }),
 
-  // Kitchen
+  // 5. Kitchen Actions (Masak)
   startCooking: (menuName: string, qtyProduced: number, ingredientIds: number[]) =>
     apiCall("/kitchen/cook", {
       method: "POST",
-      body: JSON.stringify({ menu_name: menuName, qty_produced: qtyProduced, ingredients_ids: ingredientIds }),
+      body: JSON.stringify({ 
+          menu_name: menuName, 
+          qty_produced: qtyProduced, 
+          ingredients_ids: ingredientIds 
+      }),
     }),
 
-  // IoT
+  // 6. IoT & Monitoring
   getIoTLogs: () => apiCall("/iot/logs"),
 
-  // Notifications
+  // 7. Notifikasi
   triggerNotifications: () => apiCall("/notifications/trigger", { method: "POST" }),
 }
-
 
 ==================================================
 FILENAME: .\frontend_next\lib\utils.ts

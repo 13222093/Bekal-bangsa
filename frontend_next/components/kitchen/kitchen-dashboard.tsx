@@ -7,6 +7,7 @@ import CookingProduction from "./cooking-production"
 import IoTMonitoring from "./iot-monitoring"
 import ScanFoodQC from "./scan-food-qc"
 import SupplierSearchOrder from "./supplier-search-order"
+import KitchenChatbot from "./kitchen-chatbot"
 
 interface KitchenDashboardProps {
   onLogout: () => void
@@ -30,6 +31,7 @@ export default function KitchenDashboard({ onLogout }: KitchenDashboardProps) {
           <div className="px-4 sm:px-6 lg:px-8 py-4">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
               {activeTab === "dashboard" && "Dashboard Overview"}
+              {activeTab === "chat" && <KitchenChatbot />} {/* <-- Tambah ini */}
               {activeTab === "search" && "Cari Supplier & Bahan"}
               {activeTab === "cook" && "Dapur & Produksi"}
               {activeTab === "iot" && "Smart Storage Monitoring"}
