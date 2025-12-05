@@ -10,6 +10,7 @@ import InventoryList from "@/components/common/inventory-list"
 import InventoryUpload from "./inventory-upload"
 import OrderList from "./order-list"
 import SppgSearch from "./sppg-search"
+import VendorOrderHistory from "./vendor-order-history"
 
 interface VendorDashboardProps {
   onLogout: () => void
@@ -42,11 +43,7 @@ export default function VendorDashboard({ onLogout }: VendorDashboardProps) {
       case "sppg":
         return <SppgSearch />
       case "history":
-        return (
-          <div className="bg-white rounded-lg border border-gray-200 p-6 text-center text-muted-foreground">
-            <p>Fitur riwayat transaksi akan segera tersedia.</p>
-          </div>
-        )
+        return <VendorOrderHistory />
       case "settings":
         return (
           <div className="bg-white rounded-lg border border-gray-200 p-6 text-center text-muted-foreground">
@@ -66,7 +63,7 @@ export default function VendorDashboard({ onLogout }: VendorDashboardProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <VendorNavbar vendorName="Pak Asep" onLogout={onLogout} onMenuToggle={setSidebarOpen} />
 
       <div className="flex">
@@ -78,7 +75,7 @@ export default function VendorDashboard({ onLogout }: VendorDashboardProps) {
         />
 
         {/* Main Content */}
-        <main className="flex-1 bg-gray-50/50 min-h-[calc(100vh-64px)]">
+        <main className="flex-1 bg-stone-50 min-h-[calc(100vh-64px)]">
           <div className="w-full px-6 py-8">{renderContent()}</div>
         </main>
       </div>
