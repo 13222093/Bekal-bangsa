@@ -82,7 +82,15 @@ The platform focuses on solving three core issues that threaten the stability an
 
 ---
 
-### 🚀 Quick Start (Recommended: Next.js Frontend)
+### 🚀 Quick Start
+
+#### Option A: Access Live Demo (DigitalOcean)
+**🌐 [Visit Application](https://bekal-bangsa-xyz.ondigitalocean.app)** (Example URL)
+-   **Backend:** Deployed on DigitalOcean App Platform.
+-   **Frontend:** Deployed on Vercel/DigitalOcean.
+-   **IoT:** Connected to ESP32 physical sensors.
+
+#### Option B: Run Locally
 
 #### 1. Clone & Setup
 ```bash
@@ -136,7 +144,7 @@ npm run dev
 **Access the app:** Open your browser to `http://localhost:3000`
 
 #### 5. Run IoT Simulator (Optional)
-Open a **new terminal**:
+If you don't have the ESP32 hardware, run the simulator:
 ```bash
 cd backend
 python iot_simulator.py
@@ -253,6 +261,7 @@ Bekal-bangsa/
 -   **[✅ Functional] Search Nearest SPPG:** Finds the closest Kitchen Hub based on GPS distance.
 -   **[✅ Functional] Incoming Orders:** View and manage orders from the government (SPPG).
 -   **[✅ Functional] Transaction History:** Dedicated page to track and manage order status (Pending, Confirmed, Completed).
+-   **[✅ Functional] Real User Data:** Dashboard automatically personalizes content based on the logged-in vendor's profile and analytics.
 
 ### 👨‍🍳 For SPPG (Kitchen Admin)
 -   **[✅ Functional] Smart Dashboard:** View available supplies from all vendors.
@@ -263,8 +272,9 @@ Bekal-bangsa/
     -   Auto-deducts stock from DB.
     -   **AI Nutrition Est:** Calculates Calories/Protein per serving.
     -   **AI Safety Check:** Estimates shelf-life.
--   **[✅ Functional] IoT Monitoring:** Real-time chart of storage temperature/humidity.
+-   **[✅ Functional] IoT Monitoring:** Real-time chart of storage temperature/humidity (Connected to physical ESP32 Sensor).
 -   **[✅ Functional] Scan Food (QC):** Visual analysis of cooked meals for safety and nutrition verification.
+-   **[✅ Functional] AI Chef Chatbot:** Interactive assistant ("Chef Juna") for menu planning and logistics questions, context-aware of current inventory.
 -   **[✅ Functional] Notification System:**
     -   **Popover UI:** Centralized notification center with "wiggle" animation.
     -   **Rescue Menu:** Auto-suggested recipes for expiring items pinned at the top.
