@@ -12,3 +12,4 @@ bcrypt==3.2.2
 python-jose 
 pydantic
 google-auth
+Pillow
