@@ -96,7 +96,7 @@ function LoginForm() {
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Email atau Username</label>
               <Input 
-                placeholder="cth: warung_bu_susi" 
+                placeholder="cth: vendor: pak_asep kitchen: sppg_pusat" 
                 value={formData.username_or_email}
                 onChange={(e) => setFormData({...formData, username_or_email: e.target.value})}
                 required
@@ -107,7 +107,7 @@ function LoginForm() {
               <label className="text-sm font-medium text-gray-700">Password</label>
               <Input 
                 type="password" 
-                placeholder="******" 
+                placeholder="123456" 
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
                 required
