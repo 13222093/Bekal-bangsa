@@ -80,13 +80,13 @@ The platform focuses on solving three core issues that threaten the stability an
 
 ### 🛠️ Technology Stack
 -   **Backend:** Python **FastAPI** (High performance, async support).
--   **Frontend (Primary):** **Next.js 15** with TypeScript (Modern React framework, production-ready).
--   **Frontend (Legacy):** **Streamlit** (Rapid prototyping, deprecated in favor of Next.js).
+-   **Frontend:** **Next.js 15** with TypeScript (Modern React framework, production-ready).
 -   **Database:** **Supabase** (PostgreSQL) for relational data and Realtime subscriptions.
 -   **AI Models:**
     -   **Claude 4.5 Sonnet (via Kolosal):** For Vision (Ingredient Analysis) and Reasoning (Menu Recommendation, Nutrition Estimation).
--   **IoT:** Simulated Temperature/Humidity sensors for Smart Storage.
+-   **IoT:** **ESP32** Microcontroller with **DHT11/DHT22** Temperature & Humidity Sensors.
 -   **UI Components:** shadcn/ui, Tailwind CSS, Recharts.
+-   **Infrastructure:** **Vercel** (Frontend Hosting) & **DigitalOcean** (Backend Hosting).
 
 ---
 
