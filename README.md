@@ -395,9 +395,9 @@ Bekal-bangsa/
     -   Auto-deducts stock from DB.
     -   **AI Nutrition Est:** Calculates Calories/Protein per serving.
     -   **AI Safety Check:** Estimates shelf-life.
--   **[✅ Functional] IoT Monitoring:** Real-time chart of storage temperature/humidity (Connected to physical ESP32 Sensor).
+-   **[✅ Functional] IoT Monitoring:** Real-time chart of storage temperature/humidity (Connected to physical ESP32 with Temperature and Humidity Sensor).
 -   **[✅ Functional] Scan Food (QC):** Visual analysis of cooked meals for safety and nutrition verification.
--   **[✅ Functional] AI Chef Chatbot:** Interactive assistant ("Chef Juna") for menu planning and logistics questions, context-aware of current inventory.
+-   **[✅ Functional] AI Chef Chatbot:** Interactive assistant for menu planning and logistics questions, context-aware of current inventory.
 -   **[✅ Functional] Notification System:**
     -   **Popover UI:** Centralized notification center with "wiggle" animation.
     -   **Rescue Menu:** Auto-suggested recipes for expiring items pinned at the top.
@@ -406,7 +406,10 @@ Bekal-bangsa/
 
 ---
 
-## 6. Documentation
+## 6. Architecture Overview & Documentation
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/3d7d1948-c5d0-4fcb-92f0-2c1bb2c2ee47" width="100%" alt="System Architecture Diagram" />
+</div>
 
 For in-depth technical guides:
 - **Backend:** See [`BACKEND_ARCHITECTURE.md`](./BACKEND_ARCHITECTURE.md)
