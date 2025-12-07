@@ -82,6 +82,7 @@ The platform focuses on solving three core issues that threaten the stability an
 -   **Backend:** Python **FastAPI** (High performance, async support).
 -   **Frontend:** **Next.js 15** with TypeScript (Modern React framework, production-ready).
 -   **Database:** **Supabase** (PostgreSQL) for relational data and Realtime subscriptions.
+-   **Authentication:** **JWT** (JSON Web Tokens) & **Google OAuth 2.0**.
 -   **AI Models:**
     -   **Claude 4.5 Sonnet (via Kolosal):** For Vision (Ingredient Analysis) and Reasoning (Menu Recommendation, Nutrition Estimation).
 -   **IoT:** **ESP32** Microcontroller with **DHT11/DHT22** Temperature & Humidity Sensors.
@@ -408,7 +409,7 @@ Bekal-bangsa/
 
 ## 6. Architecture Overview & Documentation
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/3d7d1948-c5d0-4fcb-92f0-2c1bb2c2ee47" width="100%" alt="System Architecture Diagram" />
+  <img src="https://github.com/user-attachments/assets/ae09ede4-bcab-4bcf-bfb0-9d85ba5e25e2" width="100%" alt="System Architecture Diagram" />
 </div>
 
 For in-depth technical guides:
