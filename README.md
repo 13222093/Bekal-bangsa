@@ -156,7 +156,9 @@ uvicorn main:app --reload
 5.  Upload the code to your ESP32. It will automatically start sending temperature/humidity data.
 
 IoT Sensor Setup Example:
-![Image](https://github.com/user-attachments/assets/44609ec5-6285-4ad1-b654-d5ce5e0576da)
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/44609ec5-6285-4ad1-b654-d5ce5e0576da" width="50%" />
+</div>
 
 **Option B: Use Simulator (No Hardware)**
 *Note: The system automatically falls back to simulated data if no sensor is active. You generally DO NOT need to run anything manually.*
