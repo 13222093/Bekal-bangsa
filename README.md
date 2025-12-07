@@ -205,9 +205,24 @@ Designed for market vendors to digitize stock and connect with government kitche
 #### 1. Dashboard & Smart Alerts
 -   **Stock Health:** Monitor Fresh vs. Expiring items at a glance.
 -   **Proactive Notifications:** Receive **WhatsApp-style alerts** when ingredients are nearing expiry, allowing you to sell them quickly before they spoil.
-<img width="2813" height="1528" alt="Image" src="https://github.com/user-attachments/assets/305b27b7-4f70-453f-8efc-999afe4c72f7" />
-<img width="2822" height="1540" alt="Image" src="https://github.com/user-attachments/assets/a1de4509-8bd3-4dfd-bd5d-8a4fa89118eb" />
-<img width="797" height="1048" alt="Image" src="https://github.com/user-attachments/assets/3d509e4c-0b58-42eb-8aba-3d1566dc41b3" />
+<table border="0">
+  <tr>
+    <td width="50%" align="center">
+      <b>Vendor Dashboard</b><br>
+      <img src="https://github.com/user-attachments/assets/305b27b7-4f70-453f-8efc-999afe4c72f7" width="100%" />
+    </td>
+    <td width="50%" align="center">
+      <b>Inventory List</b><br>
+      <img src="https://github.com/user-attachments/assets/a1de4509-8bd3-4dfd-bd5d-8a4fa89118eb" width="100%" />
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">
+      <b>WhatsApp Alert</b><br>
+      <img src="https://github.com/user-attachments/assets/3d509e4c-0b58-42eb-8aba-3d1566dc41b3" width="40%" />
+    </td>
+  </tr>
+</table>
 
 #### 2. Smart Stock Upload
 -   **AI Recognition:** Take a photo of your current existing stocks; AI automatically detects **Item Type**, **Quantity**, **Expiry Date**, and **Freshness Level**.
