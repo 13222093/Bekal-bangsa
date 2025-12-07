@@ -9,7 +9,8 @@
 
 ---
 
-**🌐 [Visit Application](https://bekal-bangsa.vercel.app)** 
+**🌐 [Visit Bekal Bangsa](https://bekal-bangsa.vercel.app)** 
+https://bekal-bangsa.vercel.app
 
 *Latest Update: December 7, 2025*
 
