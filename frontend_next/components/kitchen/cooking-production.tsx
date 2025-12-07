@@ -35,6 +35,8 @@ export default function CookingProduction() {
   const [loading, setLoading] = useState(false)
   const [now, setNow] = useState(new Date())
 
+  const [cookingResult, setCookingResult] = useState<any>(null)
+
   // 1. Fetch Inventory & History on Mount
   useEffect(() => {
     fetchInventory()
@@ -81,20 +83,27 @@ export default function CookingProduction() {
       })
       const data = await response.json()
 
-      // Refresh history to show new meal
-      fetchHistory()
-      fetchInventory() // Refresh inventory (stock deducted)
-
-      // Reset form
-      setMenuName("")
-      setQuantity("")
-      setSelectedIngredients([])
+      if (data.status === "success") {
+        setCookingResult(data) // Show result first
+        fetchHistory()
+        fetchInventory()
+        // Don't reset form yet, let user see result
+      } else {
+        alert("Gagal: " + data.message)
+      }
     } catch (error) {
       console.error("Error starting cooking:", error)
       alert("Gagal memproses masakan")
     } finally {
       setLoading(false)
     }
+  }
+
+  const resetCooking = () => {
+    setCookingResult(null)
+    setMenuName("")
+    setQuantity("")
+    setSelectedIngredients([])
   }
 
   const toggleIngredient = (id: number) => {
@@ -139,70 +148,115 @@ export default function CookingProduction() {
 
   return (
     <div className="grid md:grid-cols-2 gap-6">
-      {/* Left: Cooking Form */}
+      {/* Left: Cooking Form or Result */}
       <Card className="h-fit">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Flame className="w-5 h-5 text-orange-500" />
-            Dapur Produksi
+            {cookingResult ? "Hasil Produksi" : "Dapur Produksi"}
           </CardTitle>
-          <CardDescription>Masak menu baru dan kurangi stok otomatis</CardDescription>
+          <CardDescription>
+            {cookingResult ? "Detail masakan yang baru dibuat" : "Masak menu baru dan kurangi stok otomatis"}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Nama Menu</Label>
-            <Input
-              placeholder="Contoh: Nasi Goreng Spesial"
-              value={menuName}
-              onChange={(e) => setMenuName(e.target.value)}
-            />
-          </div>
+          {cookingResult ? (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                <h3 className="font-bold text-lg text-green-800">Berhasil Dimasak!</h3>
+                <p className="text-sm text-green-700">
+                  {cookingResult.message}
+                </p>
+              </div>
 
-          <div className="space-y-2">
-            <Label>Jumlah Porsi</Label>
-            <Input
-              type="number"
-              placeholder="0"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Pilih Bahan Baku (Opsional)</Label>
-            <div className="border rounded-md p-3 h-48 overflow-y-auto space-y-2 bg-gray-50">
-              {inventory.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">Stok kosong</p>
-              ) : (
-                inventory.map(item => (
-                  <div key={item.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`ing-${item.id}`}
-                      checked={selectedIngredients.includes(item.id)}
-                      onCheckedChange={() => toggleIngredient(item.id)}
-                    />
-                    <label
-                      htmlFor={`ing-${item.id}`}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      {item.item_name} ({item.quantity} {item.unit})
-                    </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-orange-50 p-3 rounded-lg border border-orange-100">
+                  <p className="text-xs text-muted-foreground uppercase font-bold">Nutrisi / Porsi</p>
+                  <div className="mt-1">
+                    <p className="font-semibold text-sm">Kalori: {cookingResult.nutrition_estimate?.calories}</p>
+                    <p className="font-semibold text-sm">Protein: {cookingResult.nutrition_estimate?.protein}</p>
                   </div>
-                ))
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              *Bahan yang dipilih akan dikurangi dari stok
-            </p>
-          </div>
+                </div>
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                  <p className="text-xs text-muted-foreground uppercase font-bold">Estimasi Tahan</p>
+                  <div className="mt-1">
+                    <div className="flex items-center gap-1 text-sm font-semibold">
+                      <Clock className="w-4 h-4 text-blue-600" />
+                      {cookingResult.safety_analysis?.room_temp_hours} Jam
+                    </div>
+                    <p className="text-xs text-blue-600">(Suhu Ruang)</p>
+                  </div>
+                </div>
+              </div>
 
-          <Button
-            onClick={handleStartCooking}
-            disabled={!menuName || !quantity || loading}
-            className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-          >
-            {loading ? "Sedang Memasak..." : "Mulai Masak"}
-          </Button>
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <p className="text-xs text-muted-foreground uppercase font-bold mb-1">Tips Penyimpanan</p>
+                <p className="text-sm italic text-slate-700">"{cookingResult.safety_analysis?.storage_tips}"</p>
+              </div>
+
+              <Button onClick={resetCooking} className="w-full" variant="outline">
+                Masak Menu Lain
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label>Nama Menu</Label>
+                <Input
+                  placeholder="Contoh: Nasi Goreng Spesial"
+                  value={menuName}
+                  onChange={(e) => setMenuName(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Jumlah Porsi</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Pilih Bahan Baku (Opsional)</Label>
+                <div className="border rounded-md p-3 h-48 overflow-y-auto space-y-2 bg-gray-50">
+                  {inventory.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-4">Stok kosong</p>
+                  ) : (
+                    inventory.map(item => (
+                      <div key={item.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`ing-${item.id}`}
+                          checked={selectedIngredients.includes(item.id)}
+                          onCheckedChange={() => toggleIngredient(item.id)}
+                        />
+                        <label
+                          htmlFor={`ing-${item.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {item.item_name} ({item.quantity} {item.unit})
+                        </label>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  *Bahan yang dipilih akan dikurangi dari stok
+                </p>
+              </div>
+
+              <Button
+                onClick={handleStartCooking}
+                disabled={!menuName || !quantity || loading}
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                {loading ? "Sedang Memasak..." : "Mulai Masak"}
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
 
