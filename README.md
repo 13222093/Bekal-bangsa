@@ -1,7 +1,7 @@
 <div align="center">
   <img src="https://github.com/user-attachments/assets/bb1a88d6-acb5-40e5-b495-a79c686647cc" alt="Logo Bekal Bangsa" width="250">
   <br>
-  <h1>Bekal Bangsa - Bekal Bangsa - Smart Food Supply Chain</h1>
+  <h1>Bekal Bangsa</h1>
   <p>
     Platform untuk UMKM dan SPPG dalam ekosistem pangan lokal
   </p>
