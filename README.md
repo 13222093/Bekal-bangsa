@@ -13,6 +13,9 @@
 
 https://bekal-bangsa.vercel.app
 
+**Demo Video:** 
+https://youtu.be/8UwlKFpoPkw
+
 *Latest Update: December 7, 2025*
 
 ## 1. Project Context & Objectives
@@ -77,6 +80,11 @@ The platform focuses on solving three core issues that threaten the stability an
 ### 👥 Users
 1.  **UMKM (Vendors):** Upload photos of their inventory to sell/donate before it spoils.
 2.  **Admin SPPG (Kitchen):** Receive ingredients, plan menus, cook meals, and monitor storage conditions.
+
+### 🏗️ Architecture Overview
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/ae09ede4-bcab-4bcf-bfb0-9d85ba5e25e2" width="100%" alt="System Architecture Diagram" />
+</div>
 
 ### 🛠️ Technology Stack
 -   **Backend:** Python **FastAPI** (High performance, async support).
@@ -407,10 +415,7 @@ Bekal-bangsa/
 
 ---
 
-## 6. Architecture Overview & Documentation
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/ae09ede4-bcab-4bcf-bfb0-9d85ba5e25e2" width="100%" alt="System Architecture Diagram" />
-</div>
+## 6. Documentation
 
 For in-depth technical guides:
 - **Backend:** See [`BACKEND_ARCHITECTURE.md`](./BACKEND_ARCHITECTURE.md)
