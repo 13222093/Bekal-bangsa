@@ -208,17 +208,14 @@ Designed for market vendors to digitize stock and connect with government kitche
 <table border="0">
   <tr>
     <td width="50%" align="center">
-      <b>Vendor Dashboard</b><br>
       <img src="https://github.com/user-attachments/assets/305b27b7-4f70-453f-8efc-999afe4c72f7" width="100%" />
     </td>
     <td width="50%" align="center">
-      <b>Inventory List</b><br>
       <img src="https://github.com/user-attachments/assets/a1de4509-8bd3-4dfd-bd5d-8a4fa89118eb" width="100%" />
     </td>
   </tr>
   <tr>
     <td colspan="2" align="center">
-      <b>WhatsApp Alert</b><br>
       <img src="https://github.com/user-attachments/assets/3d509e4c-0b58-42eb-8aba-3d1566dc41b3" width="40%" />
     </td>
   </tr>
@@ -227,14 +224,28 @@ Designed for market vendors to digitize stock and connect with government kitche
 #### 2. Smart Stock Upload
 -   **AI Recognition:** Take a photo of your current existing stocks; AI automatically detects **Item Type**, **Quantity**, **Expiry Date**, and **Freshness Level**.
 -   **Manual Control:** You can manually edit the AI's detected values to ensure 100% accuracy before saving to the Digital Catalog.
-<img width="2811" height="1543" alt="Image" src="https://github.com/user-attachments/assets/b8ee4b72-c46a-4ff8-b779-5901ffc464b2" />
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/b8ee4b72-c46a-4ff8-b779-5901ffc464b2" width="80%" />
+</div>
 
 #### 3. Logistics & Order Management
 -   **Find Nearest Kitchen:** Use GPS-based search to locate the closest SPPG Kitchen Hub to supply your ingredients.
 -   **Incoming Orders:** Receive and accept purchase orders from SPPG directly in the app.
-<img width="2811" height="1538" alt="Image" src="https://github.com/user-attachments/assets/a99b7f80-942b-49d3-9625-0cc52f8414db" />
-<img width="2815" height="1542" alt="Image" src="https://github.com/user-attachments/assets/072f06aa-a289-4461-8b75-0e78c2baac6e" />
-<img width="2813" height="1519" alt="Image" src="https://github.com/user-attachments/assets/d3811579-6834-4098-af1a-6c7c4a557c2a" />
+<table border="0">
+  <tr>
+    <td width="50%" align="center">
+      <img src="https://github.com/user-attachments/assets/a99b7f80-942b-49d3-9625-0cc52f8414db" width="100%" />
+    </td>
+    <td width="50%" align="center">
+      <img src="https://github.com/user-attachments/assets/072f06aa-a289-4461-8b75-0e78c2baac6e" width="100%" />
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">
+      <img src="https://github.com/user-attachments/assets/d3811579-6834-4098-af1a-6c7c4a557c2a" width="40%" />
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -244,30 +255,58 @@ Central command for managing MBG food supply chain, production, and safety.
 #### 1. Command Center
 -   **Dashboard Stock** Monitor current available ingredients.
 -   **Rescue Recommendations:** The system identifies near-expiry stock and automatically generates a **"Rescue Menu"** recommendation to utilize those specific ingredients, preventing food waste.
-<img width="2822" height="1538" alt="Image" src="https://github.com/user-attachments/assets/f807d4b9-3a90-48d6-a8a5-dc2c5ffbc840" />
-<img width="2819" height="1531" alt="Image" src="https://github.com/user-attachments/assets/8df8adf1-3d87-43b5-9921-888042552bc3" />
-<img width="2796" height="1535" alt="Image" src="https://github.com/user-attachments/assets/1b422a0a-1ab8-4b2e-a7f8-4bc3cd782438" />
-<img width="2814" height="1537" alt="Image" src="https://github.com/user-attachments/assets/0c205625-a3e9-4b4d-9c33-f54e33a19df2" />
+<table border="0">
+  <tr>
+    <td width="50%" align="center">
+      <img src="https://github.com/user-attachments/assets/f807d4b9-3a90-48d6-a8a5-dc2c5ffbc840" width="100%" />
+    </td>
+    <td width="50%" align="center">
+      <img src="https://github.com/user-attachments/assets/8df8adf1-3d87-43b5-9921-888042552bc3" width="100%" />
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="https://github.com/user-attachments/assets/1b422a0a-1ab8-4b2e-a7f8-4bc3cd782438" width="100%" />
+    </td>
+    <td width="50%" align="center">
+      <img src="https://github.com/user-attachments/assets/0c205625-a3e9-4b4d-9c33-f54e33a19df2" width="100%" />
+    </td>
+  </tr>
+</table>
 
 #### 2. Ingredient Sourcing (Geospatial)
 -   **Smart Search:** Search nearest UMKM Vendors that sold the ingredient you need, sorted by distance and freshness.
-<img width="2810" height="1528" alt="Image" src="https://github.com/user-attachments/assets/2a79f855-1ae5-4a60-b8c5-c4c80520f35a" />
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/2a79f855-1ae5-4a60-b8c5-c4c80520f35a" width="80%" />
+</div>
 
 #### 3. AI Chef Assistant Chatbot
 -   **Interactive Assistant:** Chat with "AI Chef Assistant" to plan menus, check inventory, or get recipe ideas based on your current stock.
-<img width="2804" height="1533" alt="Image" src="https://github.com/user-attachments/assets/5c132d59-806c-4e0c-9294-0164c5004171" />
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/5c132d59-806c-4e0c-9294-0164c5004171" width="80%" />
+</div>
 
 #### 4. Quality Control (Computer Vision)
 -   **Safety Scan:** Before serving, cooked meals are scanned using **Computer Vision**.
 -   **Analysis:** The AI analyzes visual cues to estimate **Nutrition Content** (Calories/Protein) and verifies **Food Safety** status.
-<img width="2789" height="1524" alt="Image" src="https://github.com/user-attachments/assets/c6693048-d211-4e53-8d90-21de6eaf80c9" />
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/c6693048-d211-4e53-8d90-21de6eaf80c9" width="80%" />
+</div>
 
 #### 5. Production & Smart Storage (IoT)
 -   **Smart Execution:** One-click cooking that **auto-deducts inventory**, provides **Nutrition Estimates**, sets an **Expiry Timer**, and offers **Storage Tips**.
 -   **Real-time IoT:** Monitors storage temperature/humidity using **Real ESP32 Sensors**.
 -   *Note: If sensors are offline, the system falls back to simulated data for demonstration.*
-<img width="2879" height="1554" alt="Image" src="https://github.com/user-attachments/assets/73a41f4c-1a85-49c0-8b98-487d650e256c" />
-<img width="2879" height="1557" alt="Image" src="https://github.com/user-attachments/assets/bdf2f6ec-67fe-4ef5-b1be-ef32412e05b6" />
+<table border="0">
+  <tr>
+    <td width="50%" align="center">
+      <img src="https://github.com/user-attachments/assets/73a41f4c-1a85-49c0-8b98-487d650e256c" width="100%" />
+    </td>
+    <td width="50%" align="center">
+      <img src="https://github.com/user-attachments/assets/bdf2f6ec-67fe-4ef5-b1be-ef32412e05b6" width="100%" />
+    </td>
+  </tr>
+</table>
 
 ---
 
