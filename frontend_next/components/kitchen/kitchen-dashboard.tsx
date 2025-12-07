@@ -47,7 +47,7 @@ export default function KitchenDashboard({ onLogout }: KitchenDashboardProps) {
           </div>
         </header>
 
-        <div className="px-6 py-8 h-[calc(100vh-80px)]">
+        <div className="px-4 py-4 md:px-6 md:py-8 h-[calc(100vh-80px)]">
           {activeTab === "dashboard" && <KitchenDashboardOverview />}
           {activeTab === "chat" && <KitchenChatbot />}
           {activeTab === "search" && <SupplierSearchOrder />}

@@ -117,7 +117,7 @@ export default function VendorDashboard({ onLogout }: VendorDashboardProps) {
 
         {/* Main Content */}
         <main className="flex-1 bg-stone-50 min-h-[calc(100vh-64px)]">
-          <div className="w-full px-6 py-8">{renderContent()}</div>
+          <div className="w-full px-4 py-4 md:px-6 md:py-8">{renderContent()}</div>
         </main>
       </div>
     </div>

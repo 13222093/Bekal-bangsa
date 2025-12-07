@@ -61,21 +61,21 @@ export default function KitchenDashboardOverview() {
       {/* Top Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-blue-50/50 border-blue-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-default">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <p className="text-sm font-medium text-blue-600">Total Item Terdata</p>
-            <p className="text-3xl font-bold text-blue-800">{metrics.total_items} Item</p>
+            <p className="text-2xl md:text-3xl font-bold text-blue-800">{metrics.total_items} Item</p>
           </CardContent>
         </Card>
         <Card className="bg-green-50/50 border-green-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-default">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <p className="text-sm font-medium text-green-600">Total Kuantitas</p>
-            <p className="text-3xl font-bold text-green-800">{metrics.total_qty} Unit</p>
+            <p className="text-2xl md:text-3xl font-bold text-green-800">{metrics.total_qty} Unit</p>
           </CardContent>
         </Card>
         <Card className="bg-amber-50/50 border-amber-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-default">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <p className="text-sm font-medium text-amber-600">Perlu Segera Digunakan</p>
-            <p className="text-3xl font-bold text-amber-800">{metrics.warning_count} Item</p>
+            <p className="text-2xl md:text-3xl font-bold text-amber-800">{metrics.warning_count} Item</p>
           </CardContent>
         </Card>
       </div>
