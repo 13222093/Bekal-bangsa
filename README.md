@@ -218,7 +218,7 @@ Designed for market vendors to digitize stock and connect with government kitche
   </tr>
   <tr>
     <td colspan="2" align="center">
-      <img src="https://github.com/user-attachments/assets/3d509e4c-0b58-42eb-8aba-3d1566dc41b3" width="40%" />
+      <img src="https://github.com/user-attachments/assets/3d509e4c-0b58-42eb-8aba-3d1566dc41b3" width="50%" />
     </td>
   </tr>
 </table>
@@ -244,7 +244,7 @@ Designed for market vendors to digitize stock and connect with government kitche
   </tr>
   <tr>
     <td colspan="2" align="center">
-      <img src="https://github.com/user-attachments/assets/d3811579-6834-4098-af1a-6c7c4a557c2a" width="40%" />
+      <img src="https://github.com/user-attachments/assets/d3811579-6834-4098-af1a-6c7c4a557c2a" width="50%" />
     </td>
   </tr>
 </table>
