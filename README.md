@@ -342,6 +342,9 @@ Bekal-bangsa/
 │   ├── database.py            # Supabase client initialization.
 │   └── requirements.txt       # Python dependencies.
 │
+├── scripts/                   # IoT Scripts
+│   └── ESP32_Sensor.ino       # C++ Code for ESP32 Microcontroller
+│
 ├── frontend_next/              # Next.js Frontend (PRIMARY)
 │   ├── app/                   # App Router (Next.js 15)
 │   │   ├── layout.tsx         # Root layout
