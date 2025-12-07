@@ -10,12 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Leaf, Loader2 } from "lucide-react"
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google"
 import Image from "next/image" // <<-- added import
+import { API_BASE } from "@/lib/api"
 
 // --- KOMPONEN FORM REGISTER ---
 function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  
+
   // Ambil role dari URL, default 'vendor'
   const roleParam = searchParams.get("role") || "vendor"
 
@@ -41,7 +42,7 @@ function RegisterForm() {
   const handleAuthSuccess = (data: any) => {
     localStorage.setItem("token", data.access_token)
     localStorage.setItem("user", JSON.stringify(data.user))
-    
+
     // Redirect ke Root, nanti page.tsx yang arahkan ke Dashboard
     router.push("/")
     router.refresh()
@@ -53,14 +54,14 @@ function RegisterForm() {
     setLoading(true)
 
     try {
-      const res = await fetch("http://localhost:8000/api/auth/register", {
+      const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       })
-      
+
       const data = await res.json()
-      
+
       if (!res.ok) {
         throw new Error(data.detail || "Gagal mendaftar")
       }
@@ -79,21 +80,21 @@ function RegisterForm() {
   const handleGoogleSuccess = async (credentialResponse: any) => {
     setLoading(true)
     try {
-      const res = await fetch("http://localhost:8000/api/auth/google", {
+      const res = await fetch(`${API_BASE}/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-            token: credentialResponse.credential,
-            role: formData.role // PENTING: Kirim role yang sedang dipilih di form
+        body: JSON.stringify({
+          token: credentialResponse.credential,
+          role: formData.role // PENTING: Kirim role yang sedang dipilih di form
         }),
       })
-      
+
       const data = await res.json()
-      
+
       if (!res.ok) {
         throw new Error(data.detail || "Gagal daftar dengan Google")
       }
-      
+
       handleAuthSuccess(data)
 
     } catch (error: any) {
@@ -127,67 +128,67 @@ function RegisterForm() {
             Bergabung dengan ekosistem Bekal Bangsa
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent>
           <form onSubmit={handleRegister} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Nama Lengkap</label>
-                <Input 
-                  required 
+                <Input
+                  required
                   placeholder="Contoh: Budi Santoso"
                   value={formData.full_name}
-                  onChange={(e) => setFormData({...formData, full_name: e.target.value})} 
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Username</label>
-                <Input 
-                  required 
+                <Input
+                  required
                   placeholder="user_budi"
                   value={formData.username}
-                  onChange={(e) => setFormData({...formData, username: e.target.value})} 
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Email</label>
-              <Input 
-                type="email" 
-                required 
+              <Input
+                type="email"
+                required
                 placeholder="budi@example.com"
                 value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})} 
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Password</label>
-                <Input 
-                  type="password" 
-                  required 
+                <Input
+                  type="password"
+                  required
                   placeholder="******"
                   value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})} 
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">No. Telepon</label>
-                <Input 
+                <Input
                   placeholder="0812..."
                   value={formData.phone_number}
-                  onChange={(e) => setFormData({...formData, phone_number: e.target.value})} 
+                  onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Daftar Sebagai</label>
-              <Select 
-                value={formData.role} 
-                onValueChange={(val) => setFormData({...formData, role: val})}
+              <Select
+                value={formData.role}
+                onValueChange={(val) => setFormData({ ...formData, role: val })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih Peran" />
@@ -200,19 +201,19 @@ function RegisterForm() {
             </div>
 
             {formData.role === "vendor" && (
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Alamat Pasar / Lokasi</label>
-                    <Input 
-                      placeholder="Pasar Tanah Abang Blok A..." 
-                      value={formData.address}
-                      onChange={(e) => setFormData({...formData, address: e.target.value})} 
-                    />
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Alamat Pasar / Lokasi</label>
+                <Input
+                  placeholder="Pasar Tanah Abang Blok A..."
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                />
+              </div>
             )}
 
-            <Button 
-              type="submit" 
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold mt-2" 
+            <Button
+              type="submit"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold mt-2"
               disabled={loading}
             >
               {loading ? <Loader2 className="animate-spin w-5 h-5" /> : "Daftar Sekarang"}
@@ -225,15 +226,15 @@ function RegisterForm() {
               <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-gray-200" /></div>
               <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-gray-500">Atau daftar cepat</span></div>
             </div>
-            
+
             <div className="flex justify-center w-full">
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={() => console.log('Register Failed')}
-                  text="signup_with"
-                  width="100%"
-                  locale="id"
-                />
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => console.log('Register Failed')}
+                text="signup_with"
+                width="100%"
+                locale="id"
+              />
             </div>
           </div>
 

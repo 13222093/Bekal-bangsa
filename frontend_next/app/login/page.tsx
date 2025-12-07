@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Loader2 } from "lucide-react"
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google"
 import Image from "next/image" // <--- Import Image
+import { API_BASE } from "@/lib/api"
 
 function LoginForm() {
   const router = useRouter()
@@ -29,7 +30,7 @@ function LoginForm() {
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await fetch("http://localhost:8000/api/auth/login", {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -47,7 +48,7 @@ function LoginForm() {
   const handleGoogleSuccess = async (credentialResponse: any) => {
     setLoading(true)
     try {
-      const res = await fetch("http://localhost:8000/api/auth/google", {
+      const res = await fetch(`${API_BASE}/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
