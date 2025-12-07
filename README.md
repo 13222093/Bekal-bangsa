@@ -1,5 +1,5 @@
 #### Bekal Bangsa 
-![Image](https://github.com/user-attachments/assets/c97fd2be-542a-45cf-b407-570bb6ba8da0)
+<img width="512" height="512" alt="Image" src="https://github.com/user-attachments/assets/bb1a88d6-acb5-40e5-b495-a79c686647cc" />
 
 **🌐 [Visit Application](https://bekal-bangsa.vercel.app)** 
 
