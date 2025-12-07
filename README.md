@@ -1,4 +1,5 @@
-## Bekal Bangsa ##
+#### Bekal Bangsa 
+![Image](https://github.com/user-attachments/assets/c97fd2be-542a-45cf-b407-570bb6ba8da0)
 
 **🌐 [Visit Application](https://bekal-bangsa.vercel.app)** 
 
@@ -145,6 +146,9 @@ uvicorn main:app --reload
 3.  Connect your ESP32 with a DHT11/DHT22 (Temperature and Humidity) sensor.
 4.  Update the `WIFI_SSID` and `WIFI_PASSWORD` in the code.
 5.  Upload the code to your ESP32. It will automatically start sending temperature/humidity data.
+
+IoT Sensor Setup Example:
+![Image](https://github.com/user-attachments/assets/44609ec5-6285-4ad1-b654-d5ce5e0576da)
 
 **Option B: Use Simulator (No Hardware)**
 *Note: The system automatically falls back to simulated data if no sensor is active. You generally DO NOT need to run anything manually.*
